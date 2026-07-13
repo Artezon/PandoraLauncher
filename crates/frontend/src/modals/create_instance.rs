@@ -7,7 +7,7 @@ use gpui_component::{
 };
 use schema::{loader::Loader, version_manifest::{MinecraftVersionManifest, MinecraftVersionType}};
 
-use crate::{entity::{instance::InstanceEntries, metadata::{AsMetadataResult, FrontendMetadata, FrontendMetadataResult, FrontendMetadataState}}, icon::PandoraIcon, interface_config::InterfaceConfig, pages::instances_page::VersionList, png_render_cache};
+use crate::{entity::{instance::InstanceEntries, metadata::{AsMetadataResult, FrontendMetadata, FrontendMetadataResult, FrontendMetadataState}}, icon::PandoraIcon, interface_config::InterfaceConfig, pages::instances_page::VersionList, png_render_cache, NameError};
 
 struct CreateInstanceModalState {
     metadata: Entity<FrontendMetadata>,
@@ -18,7 +18,7 @@ struct CreateInstanceModalState {
     selected_loader: Loader,
     loaded_versions: bool,
     error_loading_versions: Option<SharedString>,
-    name_invalid: bool,
+    name_error: Option<NameError>,
     instance_names: Arc<[SharedString]>,
     original_fallback_name: SharedString,
     unique_fallback_name: SharedString,
@@ -52,12 +52,16 @@ impl CreateInstanceModalState {
 
                 if !text.as_str().is_empty() {
                     if !crate::is_valid_instance_name(text.as_str()) {
-                        this.name_invalid = true;
+                        this.name_error = Some(NameError::InvalidName);
                         return;
                     }
                 }
 
-                this.name_invalid = instance_names.contains(&text);
+                if instance_names.contains(&text) {
+                    this.name_error = Some(NameError::NameExists);
+                } else {
+                    this.name_error = None;
+                }
             })
         };
 
@@ -76,7 +80,7 @@ impl CreateInstanceModalState {
             selected_loader: Loader::Vanilla,
             loaded_versions: false,
             error_loading_versions: None,
-            name_invalid: false,
+            name_error: None,
             instance_names,
             original_fallback_name: Default::default(),
             unique_fallback_name: Default::default(),
@@ -278,10 +282,19 @@ impl CreateInstanceModalState {
 
         let content = v_flex()
             .gap_3()
-            .child(crate::labelled(
-                t::instance::name(),
-                Input::new(&self.name_input_state).when(self.name_invalid, |this| this.border_color(cx.theme().danger)),
-            ))
+            .child(
+                crate::labelled(
+                    t::instance::name(),
+                    Input::new(&self.name_input_state).when(self.name_error.is_some(), |this| this.border_color(cx.theme().danger)),
+                )
+                .when(self.name_error.is_some(), |this| {
+                    let msg = match self.name_error.as_ref().unwrap() {
+                        NameError::InvalidName => t::instance::invalid_name(),
+                        NameError::NameExists => t::instance::name_exists(),
+                    };
+                    this.child(div().text_sm().text_color(cx.theme().danger).child(msg))
+                })
+            )
             .child(crate::labelled(t::instance::version(), v_flex().gap_2().child(version_dropdown).child(show_snapshots_button)))
             .child(crate::labelled(t::instance::modloader(), loader_button_group))
             .child(h_flex().gap_2().child(Button::new("icon").icon(PandoraIcon::Plus).label(t::instance::select_icon()).on_click({
@@ -309,7 +322,7 @@ impl CreateInstanceModalState {
                 this.child(icon)
             }));
 
-        let name_is_invalid = self.name_invalid;
+        let name_is_invalid = self.name_error.is_some();
         modal
             .overlay_closable(false)
             .title(t::instance::create())

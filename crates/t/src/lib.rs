@@ -722,6 +722,7 @@ pub mod instance {
             "memory" => Some(memory()),
             "modloader" => Some(modloader()),
             "name" => Some(name()),
+            "name_exists" => Some(name_exists()),
             "name_placeholder" => Some(name_placeholder()),
             "new" => Some(new()),
             "none_selected" => Some(none_selected()),
@@ -2547,6 +2548,12 @@ pub mod instance {
             3 => "Название",
             4 => "Namn",
             _ => "Name",
+        }
+    }
+    pub fn name_exists() -> &'static str {
+        match crate::LANG.load(std::sync::atomic::Ordering::Relaxed) {
+            3 => "Такое название уже существует",
+            _ => "Name is already used",
         }
     }
     pub fn name_placeholder() -> &'static str {

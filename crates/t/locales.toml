@@ -1247,6 +1247,9 @@ de = "Invalider Name"
 hu = "Érvénytelen név"
 sv = "Ogiltigt namn"
 ru = "Недопустимое название"
+[instance.name_exists]
+en = "Name is already used"
+ru = "Такое название уже существует"
 [instance.duplicate.action]
 en = "Duplicate"
 ru = "Дублировать"

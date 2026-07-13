@@ -4,13 +4,13 @@ use bridge::{handle::BackendHandle, instance::InstanceID, message::MessageToBack
 use gpui::{prelude::*, *};
 use gpui_component::{ActiveTheme, WindowExt, button::Button, dialog::Dialog, h_flex, input::{Input, InputEvent, InputState}, v_flex};
 
-use crate::{entity::instance::InstanceEntries, get_unique_instance_name, is_valid_instance_name, modals::generic};
+use crate::{entity::instance::InstanceEntries, get_unique_instance_name, is_valid_instance_name, modals::generic, NameError};
 
 struct DuplicateInstanceModalState {
     instance_id: InstanceID,
     backend_handle: BackendHandle,
     name_input_state: Entity<InputState>,
-    name_invalid: bool,
+    name_error: Option<NameError>,
     default_name: SharedString,
     _name_input_subscription: Subscription,
 }
@@ -44,10 +44,14 @@ impl DuplicateInstanceModalState {
                     text.as_str()
                 };
                 if resolved.is_empty() || !is_valid_instance_name(resolved) {
-                    this.name_invalid = true;
+                    this.name_error = Some(NameError::InvalidName);
                     return;
                 }
-                this.name_invalid = instance_names.contains(&text);
+                if instance_names.contains(&text) {
+                    this.name_error = Some(NameError::NameExists);
+                } else {
+                    this.name_error = None;
+                }
             })
         };
 
@@ -55,7 +59,7 @@ impl DuplicateInstanceModalState {
             instance_id,
             backend_handle,
             name_input_state,
-            name_invalid: false,
+            name_error: None,
             default_name,
             _name_input_subscription,
         }
@@ -64,12 +68,21 @@ impl DuplicateInstanceModalState {
     pub fn render(&mut self, dialog: Dialog, _window: &mut Window, cx: &mut Context<Self>) -> Dialog {
         let content = v_flex()
             .gap_3()
-            .child(crate::labelled(
-                t::instance::name(),
-                Input::new(&self.name_input_state).when(self.name_invalid, |this| this.border_color(cx.theme().danger)),
-            ));
+            .child(
+                crate::labelled(
+                    t::instance::name(),
+                    Input::new(&self.name_input_state).when(self.name_error.is_some(), |this| this.border_color(cx.theme().danger)),
+                )
+                .when(self.name_error.is_some(), |this| {
+                    let msg = match self.name_error.as_ref().unwrap() {
+                        NameError::InvalidName => t::instance::invalid_name(),
+                        NameError::NameExists => t::instance::name_exists(),
+                    };
+                    this.child(div().text_sm().text_color(cx.theme().danger).child(msg))
+                })
+            );
 
-        let name_is_invalid = self.name_invalid;
+        let name_is_invalid = self.name_error.is_some();
         dialog
             .overlay_closable(false)
             .title(t::instance::duplicate::title())

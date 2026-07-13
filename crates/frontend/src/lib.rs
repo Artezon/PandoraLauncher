@@ -295,6 +295,12 @@ pub fn open_main_window(data: &DataEntities, cx: &mut App) -> AnyWindowHandle {
     handle.into()
 }
 
+#[derive(Clone, PartialEq)]
+pub(crate) enum NameError {
+    InvalidName,
+    NameExists,
+}
+
 pub(crate) fn is_valid_instance_name(name: &str) -> bool {
     is_single_component_path(name) &&
     sanitize_filename::is_sanitized_with_options(name, sanitize_filename::OptionsForCheck { windows: true, ..Default::default() })
