@@ -53,11 +53,19 @@ fn copy_file(from: &Path, to: &Path, buf: &mut [u8], check_cancel: &dyn Fn() -> 
         check_cancel()?;
         let read = src.read(buf)?;
         if read == 0 {
-            return Ok(total);
+            break;
         }
         dst.write_all(&buf[..read])?;
         total += read as u64;
     }
+
+    let metadata = std::fs::metadata(from)?;
+    std::fs::set_permissions(to, metadata.permissions())?;
+    if let Ok(modified) = metadata.modified() {
+        let _ = dst.set_times(std::fs::FileTimes::new().set_modified(modified));
+    }
+
+    Ok(total)
 }
 
 fn duplicate_with_content_library(
