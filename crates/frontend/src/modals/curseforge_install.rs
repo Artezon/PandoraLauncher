@@ -287,6 +287,7 @@ impl InstallDialog {
         let Some(selected_file) = selected_file else {
             return modal.child(content);
         };
+        let selected_file = selected_file.file;
 
         let mut required_dependencies = selected_file.dependencies
             .iter()
@@ -683,14 +684,20 @@ struct ModVersionItem {
     file: CurseforgeFile,
 }
 
+impl PartialEq for ModVersionItem {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+    }
+}
+
 impl SelectItem for ModVersionItem {
-    type Value = CurseforgeFile;
+    type Value = Self;
 
     fn title(&self) -> SharedString {
         self.name.clone()
     }
 
     fn value(&self) -> &Self::Value {
-        &self.file
+        self
     }
 }

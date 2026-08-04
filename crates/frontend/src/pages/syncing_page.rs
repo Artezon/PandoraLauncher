@@ -106,7 +106,7 @@ impl SyncingPage {
             base = base.child(Spinner::new());
         } else {
             if (enabled || synced_count > 0) && !is_file {
-                base = base.child(h_flex().gap_1().flex_shrink().text_color(info)
+                base = base.child(h_flex().gap_1().flex_shrink(1.0).text_color(info)
                     .child(t::instance::sync::folders_count(synced_count, sync_state.total_count))
                 );
             }

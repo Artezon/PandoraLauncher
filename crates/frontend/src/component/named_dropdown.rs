@@ -5,12 +5,18 @@ use gpui_component::{
 };
 
 #[derive(Clone)]
-pub struct NamedDropdownItem<T: Clone> {
+pub struct NamedDropdownItem<T: Clone + PartialEq> {
     pub name: SharedString,
     pub item: T
 }
 
-impl<T: Clone> SelectItem for NamedDropdownItem<T> {
+impl <T: Clone + PartialEq> PartialEq for NamedDropdownItem<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.item == other.item
+    }
+}
+
+impl<T: Clone + PartialEq> SelectItem for NamedDropdownItem<T> {
     type Value = Self;
 
     fn title(&self) -> SharedString {
@@ -22,11 +28,11 @@ impl<T: Clone> SelectItem for NamedDropdownItem<T> {
     }
 }
 
-pub struct NamedDropdown<T: Clone> {
+pub struct NamedDropdown<T: Clone + PartialEq> {
     items: Vec<NamedDropdownItem<T>>,
 }
 
-impl<T: Clone> NamedDropdown<T> {
+impl<T: Clone + PartialEq> NamedDropdown<T> {
     pub fn new(items: Vec<NamedDropdownItem<T>>) -> Self {
         Self {
             items
@@ -41,7 +47,7 @@ impl<T: Clone> NamedDropdown<T> {
     }
 }
 
-impl<T: Clone> SelectDelegate for NamedDropdown<T> {
+impl<T: Clone + PartialEq + 'static> SelectDelegate for NamedDropdown<T> {
     type Item = NamedDropdownItem<T>;
 
     fn items_count(&self, _section: usize) -> usize {
@@ -70,7 +76,7 @@ impl<T: Clone> SelectDelegate for NamedDropdown<T> {
         &mut self,
         _query: &str,
         _window: &mut Window,
-        _: &mut Context<SelectState<Self>>,
+        _: &mut App,
     ) -> Task<()> {
         Task::ready(())
     }

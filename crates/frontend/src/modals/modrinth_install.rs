@@ -348,6 +348,7 @@ impl InstallDialog {
         let Some(selected_mod_version) = selected_mod_version else {
             return modal.child(content);
         };
+        let selected_mod_version = selected_mod_version.version;
 
         let required_dependencies = selected_mod_version.dependencies.as_ref().map(|deps| {
             let mut required = deps
@@ -758,14 +759,20 @@ struct ModVersionItem {
     version: ModrinthProjectVersion,
 }
 
+impl PartialEq for ModVersionItem {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+    }
+}
+
 impl SelectItem for ModVersionItem {
-    type Value = ModrinthProjectVersion;
+    type Value = Self;
 
     fn title(&self) -> SharedString {
         self.name.clone()
     }
 
     fn value(&self) -> &Self::Value {
-        &self.version
+        self
     }
 }
