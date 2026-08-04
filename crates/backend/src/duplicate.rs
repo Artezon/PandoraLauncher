@@ -1,4 +1,4 @@
-use std::{io::{Error, ErrorKind, Read, Write}, path::Path, sync::Arc};
+use std::{fs, io::{Error, ErrorKind, Read, Write, Result}, path::Path, sync::Arc};
 use sha1::Digest;
 
 use bridge::{
@@ -31,8 +31,8 @@ fn content_library_extension(path: &Path) -> Option<&str> {
     Some(&base[dot + 1..])
 }
 
-fn hash_file(path: &Path, buf: &mut [u8], check_cancel: &dyn Fn() -> std::io::Result<()>) -> std::io::Result<[u8; 20]> {
-    let mut file = std::fs::File::open(path)?;
+fn hash_file(path: &Path, buf: &mut [u8], check_cancel: &dyn Fn() -> Result<()>) -> Result<[u8; 20]> {
+    let mut file = fs::File::open(path)?;
     let mut hasher = sha1::Sha1::default();
     loop {
         check_cancel()?;
@@ -45,9 +45,9 @@ fn hash_file(path: &Path, buf: &mut [u8], check_cancel: &dyn Fn() -> std::io::Re
     Ok(hasher.finalize().into())
 }
 
-fn copy_file(from: &Path, to: &Path, buf: &mut [u8], check_cancel: &dyn Fn() -> std::io::Result<()>) -> std::io::Result<u64> {
-    let mut src = std::fs::File::open(from)?;
-    let mut dst = std::fs::File::create(to)?;
+fn copy_file(from: &Path, to: &Path, buf: &mut [u8], check_cancel: &dyn Fn() -> Result<()>) -> Result<u64> {
+    let mut src = fs::File::open(from)?;
+    let mut dst = fs::File::create(to)?;
     let mut total = 0_u64;
     loop {
         check_cancel()?;
@@ -59,10 +59,10 @@ fn copy_file(from: &Path, to: &Path, buf: &mut [u8], check_cancel: &dyn Fn() -> 
         total += read as u64;
     }
 
-    let metadata = std::fs::metadata(from)?;
-    std::fs::set_permissions(to, metadata.permissions())?;
+    let metadata = fs::metadata(from)?;
+    fs::set_permissions(to, metadata.permissions())?;
     if let Ok(modified) = metadata.modified() {
-        let _ = dst.set_times(std::fs::FileTimes::new().set_modified(modified));
+        let _ = dst.set_times(fs::FileTimes::new().set_modified(modified));
     }
 
     Ok(total)
@@ -73,8 +73,8 @@ fn duplicate_with_content_library(
     to: &Path,
     content_library_dir: &Path,
     progress: &dyn Fn(u64, u64),
-    check_cancel: &dyn Fn() -> std::io::Result<()>,
-) -> std::io::Result<()> {
+    check_cancel: &dyn Fn() -> Result<()>,
+) -> Result<()> {
     let from = from.canonicalize()?;
     if !from.is_dir() {
         return Err(ErrorKind::NotADirectory.into());
@@ -96,7 +96,7 @@ fn duplicate_with_content_library(
     directories_to_visit.push((from.to_path_buf(), 0));
 
     while let Some((directory, depth)) = directories_to_visit.pop() {
-        let read_dir = std::fs::read_dir(directory)?;
+        let read_dir = fs::read_dir(directory)?;
         for entry in read_dir {
             let entry = entry?;
             let path = entry.path();
@@ -105,7 +105,7 @@ fn duplicate_with_content_library(
                 return Err(Error::new(ErrorKind::Other, format!("{path:?} is not a child of {from:?}")));
             };
             if file_type.is_symlink() {
-                let target = std::fs::read_link(&path)?;
+                let target = fs::read_link(&path)?;
                 if let Ok(internal) = target.strip_prefix(&from) {
                     internal_symlinks.push((relative.to_path_buf(), internal.to_path_buf()));
                 } else {
@@ -139,7 +139,7 @@ fn duplicate_with_content_library(
     progress(0, total_files);
 
     for directory in directories {
-        _ = std::fs::create_dir(to.join(directory));
+        _ = fs::create_dir(to.join(directory));
     }
 
     let mut files_done = 0_u64;
@@ -233,7 +233,7 @@ pub async fn duplicate_instance(
 
     let dest = backend.directories.instances_dir.join(name);
 
-    if let Err(err) = std::fs::create_dir(&dest) {
+    if let Err(err) = fs::create_dir(&dest) {
         modal_action.set_error_message(format!("Unable to create instance directory: {err}").into());
         modal_action.set_finished();
         return;
@@ -250,7 +250,7 @@ pub async fn duplicate_instance(
         if modal_action.has_requested_cancel() {
             tracker.set_title("Cancelling...".into());
             tracker.notify();
-            Err(std::io::Error::new(std::io::ErrorKind::Interrupted, "Operation cancelled"))
+            Err(Error::new(ErrorKind::Interrupted, "Operation cancelled"))
         } else {
             Ok(())
         }
@@ -262,7 +262,7 @@ pub async fn duplicate_instance(
             tracker.notify();
         },
         Err(error) => {
-            let _ = std::fs::remove_dir_all(&dest);
+            let _ = fs::remove_dir_all(&dest);
             if modal_action.has_requested_cancel() {
                 tracker.set_finished(ProgressTrackerFinishType::Fast);
                 tracker.notify();
