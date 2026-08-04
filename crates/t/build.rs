@@ -118,8 +118,8 @@ pub fn set_lang(lang: &Language) {
         locales.nodes[*root].write(&locales, 0, &mut content);
     }
 
-    let lib = dir.join("src").join("lib.rs");
-    std::fs::write(&lib, content.as_bytes())?;
+    let generated = Path::new(&std::env::var("OUT_DIR").unwrap()).join("generated.rs");
+    std::fs::write(&generated, content.as_bytes())?;
     Ok(())
 }
 
