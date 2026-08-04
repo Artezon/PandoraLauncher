@@ -31,13 +31,12 @@ fn content_library_extension(path: &Path) -> Option<&str> {
     Some(&base[dot + 1..])
 }
 
-fn hash_file(path: &Path, check_cancel: &dyn Fn() -> std::io::Result<()>) -> std::io::Result<[u8; 20]> {
+fn hash_file(path: &Path, buf: &mut [u8], check_cancel: &dyn Fn() -> std::io::Result<()>) -> std::io::Result<[u8; 20]> {
     let mut file = std::fs::File::open(path)?;
     let mut hasher = sha1::Sha1::default();
-    let mut buf = vec![0_u8; 128 * 1024];
     loop {
         check_cancel()?;
-        let read = file.read(&mut buf)?;
+        let read = file.read(buf)?;
         if read == 0 {
             break;
         }
@@ -46,14 +45,13 @@ fn hash_file(path: &Path, check_cancel: &dyn Fn() -> std::io::Result<()>) -> std
     Ok(hasher.finalize().into())
 }
 
-fn copy_file(from: &Path, to: &Path, check_cancel: &dyn Fn() -> std::io::Result<()>) -> std::io::Result<u64> {
-    let mut buf = vec![0_u8; 128 * 1024];
+fn copy_file(from: &Path, to: &Path, buf: &mut [u8], check_cancel: &dyn Fn() -> std::io::Result<()>) -> std::io::Result<u64> {
     let mut src = std::fs::File::open(from)?;
     let mut dst = std::fs::File::create(to)?;
     let mut total = 0_u64;
     loop {
         check_cancel()?;
-        let read = src.read(&mut buf)?;
+        let read = src.read(buf)?;
         if read == 0 {
             return Ok(total);
         }
@@ -137,12 +135,13 @@ fn duplicate_with_content_library(
     }
 
     let mut files_done = 0_u64;
+    let mut buf = vec![0_u8; 128 * 1024];
     for (relative, source_path, is_library_eligible) in &files {
         check_cancel()?;
         let dest = to.join(relative);
 
         if *is_library_eligible {
-            if let Ok(hash) = hash_file(source_path, check_cancel) {
+            if let Ok(hash) = hash_file(source_path, &mut buf, check_cancel) {
                 let ext = content_library_extension(source_path);
                 let lib_path = create_content_library_path(content_library_dir, hash, ext);
                 if lib_path.exists() {
@@ -155,7 +154,7 @@ fn duplicate_with_content_library(
             }
         }
 
-        copy_file(source_path, &dest, check_cancel)?;
+        copy_file(source_path, &dest, &mut buf, check_cancel)?;
         files_done += 1;
         progress(files_done, total_files);
     }
