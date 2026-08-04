@@ -64,3 +64,4 @@ command.workspace = true
 junction.workspace = true
 mslnk.workspace = true
 windows.workspace = true
+winapi-util.workspace = true

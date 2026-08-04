@@ -361,6 +361,31 @@ pub fn hard_link_or_copy(from: &Path, to: &Path) -> std::io::Result<()> {
     }
 }
 
+pub(crate) fn has_multiple_hard_links(path: &Path) -> bool {
+    #[cfg(unix)]
+    {
+        let Ok(metadata) = std::fs::metadata(path) else {
+            return true;
+        };
+        use std::os::unix::fs::MetadataExt;
+        metadata.nlink() > 1
+    }
+    #[cfg(windows)]
+    {
+        let Ok(handle) = winapi_util::Handle::from_path(path) else {
+            return true;
+        };
+        let Ok(info) = winapi_util::file::information(&handle) else {
+            return true;
+        };
+        info.number_of_links() > 1
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        true
+    }
+}
+
 pub fn rename_with_fallback_across_devices(from: &Path, to: &Path) -> std::io::Result<()> {
     // Remove empty 'to' directory to ensure consistent behaviour across unix and windows
     if let Err(err) = std::fs::remove_dir(to) && !matches!(err.kind(), ErrorKind::NotADirectory | ErrorKind::NotFound) {

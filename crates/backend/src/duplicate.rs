@@ -7,7 +7,7 @@ use bridge::{
     safe_path::SafePath,
 };
 
-use crate::{BackendState, create_content_library_path, hard_link_or_copy, is_single_component_path_str, symlink_dir_or_file};
+use crate::{BackendState, create_content_library_path, hard_link_or_copy, has_multiple_hard_links, is_single_component_path_str, symlink_dir_or_file};
 use crate::export::{is_mod_file, is_resourcepack_file, is_shaderpack_file};
 
 fn is_content_file(rel: &Path) -> bool {
@@ -148,7 +148,7 @@ fn duplicate_with_content_library(
         check_cancel()?;
         let dest = to.join(relative);
 
-        if *is_library_eligible {
+        if *is_library_eligible && has_multiple_hard_links(source_path) {
             if let Ok(hash) = hash_file(source_path, &mut buf, check_cancel) {
                 let ext = content_library_extension(source_path);
                 let lib_path = create_content_library_path(content_library_dir, hash, ext);

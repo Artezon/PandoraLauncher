@@ -672,6 +672,7 @@ dependencies = [
  "ustr",
  "uuid",
  "walkdir",
+ "winapi-util",
  "windows 0.62.2",
  "zip",
 ]
