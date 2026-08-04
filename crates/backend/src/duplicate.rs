@@ -148,6 +148,12 @@ fn duplicate_with_content_library(
         check_cancel()?;
         let dest = to.join(relative);
 
+        if reflink_copy::reflink(source_path, &dest).is_ok() {
+            files_done += 1;
+            progress(files_done, total_files);
+            continue;
+        }
+
         if *is_library_eligible && has_multiple_hard_links(source_path) {
             if let Ok(hash) = hash_file(source_path, &mut buf, check_cancel) {
                 let ext = content_library_extension(source_path);
