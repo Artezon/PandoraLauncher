@@ -231,8 +231,8 @@ pub async fn duplicate_instance(
     }
 
     let source = {
-        let mut state = backend.instance_state.write();
-        let Some(instance) = state.instances.get_mut(id) else {
+        let state = backend.instance_state.read();
+        let Some(instance) = state.instances.get(id) else {
             modal_action.set_error_message("Unable to duplicate instance, unknown id".to_string().into());
             modal_action.set_finished();
             return;
