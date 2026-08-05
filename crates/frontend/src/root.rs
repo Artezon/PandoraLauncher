@@ -8,9 +8,9 @@ use bridge::{
     modal_action::ModalAction,
 };
 use gpui::{prelude::*, *};
-use gpui_component::{Root, Theme, WindowExt, scroll::ScrollableElement, v_flex};
+use gpui_component::{Root, Theme, WindowExt, scroll::ScrollableElement, v_flex, h_flex};
 
-use crate::{Backwards, CloseWindow, Forwards, MAIN_FONT, OpenSettings, entity::DataEntities, modals, ui::{LauncherUI, PageType}};
+use crate::{Backwards, CloseWindow, Forwards, MAIN_FONT, OpenSettings, component::title_bar::WindowControl, entity::DataEntities, modals, ui::{LauncherUI, PageType}};
 
 pub struct LauncherRootGlobal {
     pub root: Entity<LauncherRoot>,
@@ -77,6 +77,8 @@ impl Render for LauncherRoot {
         let dialog_layer = Root::render_dialog_layer(window, cx);
         let notification_layer = Root::render_notification_layer(window, cx);
 
+        let window_controls = window.window_controls();
+
         v_flex()
             .size_full()
             .font_family(MAIN_FONT)
@@ -84,6 +86,25 @@ impl Render for LauncherRoot {
             .children(sheet_layer)
             .children(dialog_layer)
             .children(notification_layer)
+            .when(!cfg!(target_os = "macos") && should_render_custom_titlebar(), |this| {
+                this.child(
+                    h_flex()
+                        .id("window-controls-overlay")
+                        .absolute()
+                        .top_0()
+                        .right_0()
+                        .h(px(57.0))
+                        .p_2()
+                        .gap_1()
+                        .when(window_controls.minimize, |this| this.child(WindowControl::Minimize))
+                        .when(window_controls.maximize, |this| this.child(if window.is_maximized() {
+                            WindowControl::Restore
+                        } else {
+                            WindowControl::Maximize
+                        }))
+                        .child(WindowControl::Close)
+                )
+            })
             .track_focus(&self.focus_handle)
             .on_action(|_: &CloseWindow, window, _| {
                 window.remove_window();

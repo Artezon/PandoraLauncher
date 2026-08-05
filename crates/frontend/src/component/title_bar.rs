@@ -66,8 +66,6 @@ impl RenderOnce for TitleBar {
                     }));
         }
 
-        let window_controls = window.window_controls();
-
         h_flex()
             .id("bar")
             .window_control_area(WindowControlArea::Drag)
@@ -103,6 +101,7 @@ impl RenderOnce for TitleBar {
             .max_h(px(57.0))
             .h(px(57.0))
             .p_4()
+            .when(!cfg!(target_os = "macos"), |this| this.pr_32())
             .border_b_1()
             .border_color(cx.theme().border)
             .text_xl()
@@ -120,7 +119,7 @@ impl RenderOnce for TitleBar {
                     .child(div().overflow_hidden().pr_8().child(self.page_path))
                     .child(div().flex_1().child(self.controls))
                 )
-                .when(!cfg!(target_os = "macos") || self.update.is_some(), |this| {
+                .when_some(self.update, |this, update| {
                     this.child(h_flex()
                         .flex_shrink_0()
                         .h_full()
@@ -130,32 +129,21 @@ impl RenderOnce for TitleBar {
                                 cx.stop_propagation();
                             }
                         })
-                        .when_some(self.update, |this, update| {
-                            this.child(Button::new("update")
-                                .label(t::system::update::available())
-                                .success()
-                                .compact()
-                                .small()
-                                .ml_2()
-                                .icon(PandoraIcon::Download)
-                                .on_click({
-                                    let send = self.send.clone();
-                                    move |_, window, cx| {
-                                        crate::modals::update_prompt::open_update_prompt(update.clone(), send.clone(), window, cx);
-                                    }
-                                })
-                            )
-                        })
-                        .when(!cfg!(target_os = "macos"), |this| {
-                            this
-                                .when(window_controls.minimize, |this| this.child(WindowControl::Minimize))
-                                .when(window_controls.maximize, |this| this.child(if window.is_maximized() {
-                                    WindowControl::Restore
-                                } else {
-                                    WindowControl::Maximize
-                                }))
-                                .child(WindowControl::Close)
-                        }))
+                        .child(Button::new("update")
+                            .label(t::system::update::available())
+                            .success()
+                            .compact()
+                            .small()
+                            .ml_2()
+                            .icon(PandoraIcon::Download)
+                            .on_click({
+                                let send = self.send.clone();
+                                move |_, window, cx| {
+                                    crate::modals::update_prompt::open_update_prompt(update.clone(), send.clone(), window, cx);
+                                }
+                            })
+                        )
+                    )
                 }))
     }
 }
