@@ -101,6 +101,7 @@ fn duplicate_with_content_library(
     directories_to_visit.push((from.to_path_buf(), 0));
 
     while let Some((directory, depth)) = directories_to_visit.pop() {
+        check_cancel()?;
         let read_dir = fs::read_dir(directory)?;
         for entry in read_dir {
             let entry = entry?;
@@ -144,6 +145,7 @@ fn duplicate_with_content_library(
     progress(0, total_files);
 
     for directory in directories {
+        check_cancel()?;
         _ = fs::create_dir(to.join(directory));
     }
 
