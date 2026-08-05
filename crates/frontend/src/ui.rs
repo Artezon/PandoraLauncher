@@ -600,7 +600,7 @@ impl Render for LauncherUI {
                     window.start_window_move();
                 }
             }))
-            .when_else(cfg!(target_os = "macos"), |this| this.pt(px(9.0)), |this| this.pt(px(14.0)))
+            .when_else(cfg!(target_os = "macos"), |this| this.pt(px(41.0)), |this| this.pt(px(14.0)))
             .px_5()
             .pb_2()
             .gap_2()
@@ -620,38 +620,6 @@ impl Render for LauncherUI {
             .max_size_full()
             .bg(cx.theme().sidebar)
             .text_color(cx.theme().sidebar_foreground)
-            .when(cfg!(target_os = "macos"), |this| {
-                this.child(h_flex()
-                    .id("sidebar-double-clicker")
-                    .w_full()
-                    .h(px(32.0))
-                    .window_control_area(WindowControlArea::Drag)
-                    .on_any_mouse_down(|_, window, cx| {
-                        if window.default_prevented() {
-                            cx.stop_propagation();
-                        }
-                    })
-                    .on_mouse_down(
-                        MouseButton::Left,
-                        window.listener_for(&header_drag_state, |state, _, _, _| {
-                            state.should_move = true;
-                        }),
-                    )
-                    .on_mouse_up(
-                        MouseButton::Left,
-                        window.listener_for(&header_drag_state, |state, _, _, _| {
-                            state.should_move = false;
-                        }),
-                    )
-                    .on_mouse_move(window.listener_for(&header_drag_state, |state, _, window, _| {
-                        if state.should_move {
-                            state.should_move = false;
-                            window.start_window_move();
-                        }
-                    }))
-                    .on_double_click(|_, window, _| window.titlebar_double_click())
-                )
-            })
             .child(header)
             .child(v_flex()
                 .flex_1()
