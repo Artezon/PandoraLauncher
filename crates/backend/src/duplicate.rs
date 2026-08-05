@@ -1,4 +1,4 @@
-use std::{fs, io::{Error, ErrorKind, Read, Write, Result}, path::Path, sync::Arc};
+use std::{fs, io::{Error, ErrorKind, Read, Write, Result}, path::{Path, PathBuf}, sync::Arc};
 use sha1::Digest;
 
 use bridge::{
@@ -20,15 +20,20 @@ fn is_content_file(rel: &Path) -> bool {
     is_mod_file(&rel) || is_resourcepack_file(&rel) || is_shaderpack_file(&rel)
 }
 
-fn content_library_extension(path: &Path) -> Option<&str> {
-    let filename = path.file_name().and_then(|s| s.to_str())?;
-    let base = if filename.ends_with(".disabled") {
-        &filename[..filename.len() - ".disabled".len()]
-    } else {
-        filename
-    };
-    let dot = base.rfind('.')?;
-    Some(&base[dot + 1..])
+fn find_content_library_path(content_library_dir: &Path, hash: [u8; 20], path: &Path) -> Option<PathBuf> {
+    let extension = path.extension().and_then(|s| s.to_str());
+    let lib_path = create_content_library_path(content_library_dir, hash, extension);
+    if lib_path.exists() {
+        return Some(lib_path);
+    }
+
+    let disabled_extension = path.file_name()
+        .and_then(|s| s.to_str())
+        .and_then(|filename| filename.strip_suffix(".disabled"))
+        .and_then(|base| Path::new(base).extension())
+        .and_then(|s| s.to_str());
+    let lib_path = create_content_library_path(content_library_dir, hash, disabled_extension);
+    lib_path.exists().then_some(lib_path)
 }
 
 fn hash_file(path: &Path, buf: &mut [u8], check_cancel: &dyn Fn() -> Result<()>) -> Result<[u8; 20]> {
@@ -156,9 +161,7 @@ fn duplicate_with_content_library(
 
         if *is_library_eligible && has_multiple_hard_links(source_path) {
             if let Ok(hash) = hash_file(source_path, &mut buf, check_cancel) {
-                let ext = content_library_extension(source_path);
-                let lib_path = create_content_library_path(content_library_dir, hash, ext);
-                if lib_path.exists() {
+                if let Some(lib_path) = find_content_library_path(content_library_dir, hash, source_path) {
                     if hard_link_or_copy(&lib_path, &dest).is_ok() {
                         files_done += 1;
                         progress(files_done, total_files);
