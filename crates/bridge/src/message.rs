@@ -154,6 +154,7 @@ pub enum MessageToBackend {
     StartInstance {
         id: InstanceID,
         quick_play: Option<QuickPlayLaunch>,
+        live_game_output: Option<tokio::sync::oneshot::Sender<tokio::sync::mpsc::UnboundedReceiver<GameOutputMsg>>>,
         modal_action: ModalAction,
     },
     RequestLoadWorlds {
@@ -261,9 +262,6 @@ pub enum MessageToBackend {
         from_index: usize,
         delta: isize,
     },
-    SetOpenGameOutputAfterLaunching {
-        value: bool,
-    },
     SetProxyConfiguration {
         config: ProxyConfig,
         password: Option<String>,
@@ -362,9 +360,6 @@ pub enum MessageToFrontend {
         id: InstanceID,
         content_folder: ContentFolder,
         content: Arc<[InstanceContentSummary]>,
-    },
-    CreateGameOutputWindow {
-        receiver: tokio::sync::mpsc::UnboundedReceiver<GameOutputMsg>
     },
     AddNotification {
         notification_type: BridgeNotificationType,

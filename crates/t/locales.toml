@@ -2913,6 +2913,12 @@ de = "Fenster"
 hu = "Ablakok"
 sv = "Fönster"
 ru = "Окна"
+[settings.windows.live_game_output_display]
+en = "Live game output display"
+[settings.windows.live_game_output_display.hidden]
+en = "Hidden"
+[settings.windows.live_game_output_display.separate_window]
+en = "Separate Window"
 [settings.windows.hide_main_window]
 en = "Hide main window on launch"
 pl = "Ukryj główne okno przy uruchomieniu"
@@ -2920,13 +2926,6 @@ de = "Verstecke Hauptfenster beim Start"
 hu = "Fő ablak elrejtése a játék indításakor"
 sv = "Göm huvudfönstret vid spelstart"
 ru = "Скрывать главное окно при запуске"
-[settings.windows.open_game_output]
-en = "Open game output on launch"
-pl = "Otwórz konsolę gry przy uruchomieniu"
-de = "Öffne Spielausgabe beim Start"
-hu = "Játéknapló megnyitása a játék indításakor"
-sv = "Öppna spelutdata vid spelstart"
-ru = "Открывать логи игры при запуске"
 [settings.windows.close_all_when_main_closed]
 en = "Close all other windows when main window closed"
 pl = "Zamknij wszystkie pozostałe okna po zamknięciu głównego okna"

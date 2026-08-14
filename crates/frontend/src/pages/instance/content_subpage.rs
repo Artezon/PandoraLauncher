@@ -174,11 +174,11 @@ impl InstanceContentSubpage {
         });
 
         cx.subscribe(&sort_dropdown, |this, _, event: &SelectEvent<NamedDropdown<InstanceContentSortKey>>, cx| {
-            let SelectEvent::Confirm(Some(value)) = event else {
+            let SelectEvent::Confirm(Some(sort_key)) = event else {
                 return;
             };
 
-            let sort_key = value.item;
+            let sort_key = *sort_key;
             let config = InterfaceConfig::get_mut(cx);
 
             if this.content_type.sort_key(config) == sort_key {

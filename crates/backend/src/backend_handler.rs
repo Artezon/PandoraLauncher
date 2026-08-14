@@ -2,7 +2,7 @@ use std::{borrow::Cow, io::{BufRead, Read}, sync::{Arc, atomic::Ordering}, time:
 
 use auth::{credentials::AccountCredentials, models::MinecraftAccessToken, secret::PlatformSecretStorage};
 use bridge::{
-    install::{ContentDownload, ContentInstall, ContentInstallFile, ContentInstallPath, InstallTarget}, instance::{ContentFolder, ContentSummary, ContentType, InstanceID}, keep_alive::KeepAlive, message::{AccountCapesResult, AccountSkinResult, BackendConfigWithPassword, EmbeddedOrRaw, LogFiles, MessageToBackend, MessageToFrontend, QuickPlayLaunch}, meta::MetadataResult, modal_action::{ModalAction, ModalActionVisitUrl, ProgressTracker, ProgressTrackerFinishType}, serial::AtomicOptionSerial
+    install::{ContentDownload, ContentInstall, ContentInstallFile, ContentInstallPath, InstallTarget}, instance::{ContentFolder, ContentSummary, ContentType, InstanceID}, keep_alive::KeepAlive, message::{AccountCapesResult, AccountSkinResult, BackendConfigWithPassword, EmbeddedOrRaw, GameOutputMsg, LogFiles, MessageToBackend, MessageToFrontend, QuickPlayLaunch}, meta::MetadataResult, modal_action::{ModalAction, ModalActionVisitUrl, ProgressTracker, ProgressTrackerFinishType}, serial::AtomicOptionSerial
 };
 use futures::TryFutureExt;
 use schema::{auxiliary::AuxiliaryContentMeta, content::{ContentInstallReason, ContentSource}, curseforge::{CurseforgeGetModFilesRequest, CurseforgeModLoaderType}, loader::Loader, minecraft_profile::{MinecraftProfileResponse, SkinVariant}, modrinth::ModrinthLoader, version::{LaunchArgument, LaunchArgumentValue}};
@@ -303,15 +303,16 @@ impl BackendState {
                 }
 
                 if let Some(id) = id {
-                    self.start_instance(id, quick_play, Default::default()).await
+                    self.start_instance(id, quick_play, None, Default::default()).await
                 }
             },
             MessageToBackend::StartInstance {
                 id,
                 quick_play,
+                live_game_output,
                 modal_action,
             } => {
-                self.start_instance(id, quick_play, modal_action).await
+                self.start_instance(id, quick_play, live_game_output, modal_action).await
             },
             MessageToBackend::SetContentEnabled { id, content_ids: mod_ids, enabled } => {
                 let mut instance_state = self.instance_state.write();
@@ -1412,11 +1413,6 @@ impl BackendState {
                     account_info.accounts.move_index(from_index, to_index);
                 });
             },
-            MessageToBackend::SetOpenGameOutputAfterLaunching { value } => {
-                self.config.write().modify(|config| {
-                    config.dont_open_game_output_when_launching = !value;
-                });
-            },
             MessageToBackend::SetProxyConfiguration { config, password } => {
                 self.config.write().modify(|backend_config| {
                     backend_config.proxy = config;
@@ -1940,7 +1936,13 @@ impl BackendState {
         }
     }
 
-    async fn start_instance(self: &Arc<Self>, id: InstanceID, quick_play: Option<QuickPlayLaunch>, modal_action: ModalAction) {
+    async fn start_instance(
+        self: &Arc<Self>,
+        id: InstanceID,
+        quick_play: Option<QuickPlayLaunch>,
+        live_game_output: Option<tokio::sync::oneshot::Sender<tokio::sync::mpsc::UnboundedReceiver<GameOutputMsg>>>,
+        modal_action: ModalAction
+    ) {
         let keepalive = KeepAlive::new();
 
         let (dot_minecraft, configuration) = if let Some(instance) = self.instance_state.write().instances.get_mut(id) {
@@ -1995,11 +1997,9 @@ impl BackendState {
             return;
         }
 
-        let game_output = !self.config.write().get().dont_open_game_output_when_launching;
-
         let launch_tracker = ProgressTracker::new(Arc::from("Launching"), self.send.clone());
         modal_action.trackers.push(launch_tracker.clone());
-        let result = self.launcher.launch(&self.redirecting_http_client, dot_minecraft, configuration, quick_play, login_info, game_output, &launch_tracker, &modal_action).await;
+        let result = self.launcher.launch(&self.redirecting_http_client, dot_minecraft, configuration, quick_play, login_info, live_game_output.is_some(), &launch_tracker, &modal_action).await;
 
         if matches!(result, Err(LaunchError::CancelledByUser)) {
             self.send.send(MessageToFrontend::CloseModal);
@@ -2009,9 +2009,10 @@ impl BackendState {
         let is_err = result.is_err();
         match result {
             Ok(mut child) => {
-                if game_output {
+                if let Some(live_game_output) = live_game_output {
                     if let Some(stdout) = child.stdout.take() {
-                        log_reader::start_game_output(stdout, child.stderr.take(), self.send.clone());
+                        let receiver = log_reader::start_game_output(stdout, child.stderr.take());
+                        _ = live_game_output.send(receiver);
                     }
                 }
 

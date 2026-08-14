@@ -129,7 +129,7 @@ impl Element for ResizePanel {
 
         let mut line_origin = bounds.origin.clone();
         line_origin.x += size - RESIZE_PADDING;
-        let mut line_bounds = Bounds {
+        let line_bounds = Bounds {
             origin: line_origin,
             size: Size::new(RESIZE_PADDING*2 + RESIZE_WIDTH, bounds.size.height),
         };

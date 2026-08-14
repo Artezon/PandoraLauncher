@@ -467,7 +467,7 @@ impl InstanceSettingsSubpage {
 
 		self.backend_handle.send(MessageToBackend::SetInstancePreferredAccount {
 			id: self.instance_id,
-			account: value.as_ref().map(|value| value.item),
+			account: value.clone(),
 		});
     }
 
