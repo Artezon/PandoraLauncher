@@ -595,7 +595,7 @@ impl ModrinthSearchPage {
                         v_flex()
                             .id(("open-project", index))
                             .h(px(104.0))
-                            .flex_grow()
+                            .flex_grow(1.0)
                             .gap_1()
                             .overflow_hidden()
                             .cursor_pointer()

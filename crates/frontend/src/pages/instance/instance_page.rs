@@ -103,7 +103,7 @@ impl Page for InstancePage {
                                                 .label(t::common::cancel())
                                                 .on_click(|_, window, cx| {
                                                     window.close_dialog(cx);
-                                                }).flex_grow()
+                                                }).flex_grow(1.0)
                                         )
                                         .child(
                                             Button::new("ok")

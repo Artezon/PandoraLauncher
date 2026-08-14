@@ -762,6 +762,7 @@ sv = "<avaktivera>"
 ru = "<не задано>"
 [common.no_override]
 en = "No override"
+hu = "Nincs fellüírás"
 ru = "По умолчанию"
 [common.cancel]
 en = "Cancel"
@@ -860,12 +861,15 @@ sv = "Minecraft Log utmatning"
 ru = "Логи Minecraft"
 [system.report_bug]
 en = "Report a bug"
+hu = "Hibajelentés"
 ru = "Сообщить об ошибке"
 [system.join_discord]
 en = "Join the Discord server"
+hu = "Csatlakozz a Discord-szerverhez"
 
 [system.update.available]
 en = "Update Available"
+hu = "Elérhető egy frissítés"
 ru = "Доступно обновление"
 [system.update.title]
 en = "Update Pandora?"
@@ -1039,9 +1043,11 @@ sv = "snabbspel"
 ru = "Быстрый запуск"
 [instance.quickplay.pinging]
 en = "Pinging..."
+hu = "Pingelés"
 ru = "Соединение..."
 [instance.quickplay.unable_to_get_status]
 en = "Unable to get server status"
+hu = "Nem sikerült lekérni a szerver státuszát"
 ru = "Не удалось получить статус сервера"
 [instance.worlds]
 en = "Worlds"
@@ -1069,6 +1075,7 @@ sv = "Nuvarande Session"
 ru = "Текущая сессия"
 [instance.current_session.not_running]
 en = "Not running"
+hu = "Nem fut"
 ru = "Не запущена"
 [instance.vanilla]
 en = "Vanilla"
@@ -1156,6 +1163,7 @@ sv = "Skapa en genväg"
 ru = "Создать ярлык"
 [instance.folder]
 en = "Instance Folder (click to relocate)"
+hu = "Példány mappa (kattints az áthelyezéshez)"
 ru = "Папка экземпляра (нажмите для переноса)"
 [instance.open_folder]
 en = "Open .minecraft folder"
@@ -1505,9 +1513,11 @@ sv = "Sandlådeisolering"
 ru = "Песочница"
 [instance.security.sandbox.tooltip]
 en = "Sandbox the instance, preventing access to files and systems it shouldn't have access to"
+hu = "Izolálja a példányt, lekorlátozva a hozzáférését fájlokhoz és rendszerekhez amikhez nem kellene neki hozzáférni"
 ru = "Изолировать экземпляр, ограничив доступ к файлам и системам, которые не требуются для его работы"
 [instance.security.sandbox.not_available]
 en = "Cannot sandbox: missing bwrap and xdg-dbus-proxy commands"
+hu = "Nem lehet izolálni: hiányzó bwrap és xdg-dbus-proxy parancsok"
 ru = "Невозможно использовать песочницу: отсутствуют команды bwrap и xdg-dbus-proxy"
 
 [instance.linux.label]
@@ -1962,9 +1972,11 @@ sv = "Modförfattaren har blockerat nedladdningar från tredjeparts launchers"
 ru = "Автор мода заблокировал загрузку из сторонних лаунчеров"
 [instance.content.install.loading_files]
 en = "Loading files..."
+hu = "Fájlok betöltése..."
 ru = "Загрузка файлов..."
 [instance.content.install.error_loading_files]
 en = "Error loading files: ${err: &str}"
+hu = "Hiba a fájlok betöltésekor: ${err: &str}"
 ru = "Ошибка загрузки файлов: ${err: &str}"
 [instance.content.install.select_mods]
 en = "Select mods to install"
@@ -2142,59 +2154,77 @@ ru = "Установлено вручную - автоматическое об�
 
 [instance.content.sort_key.name]
 en = "Name"
+hu = "Név"
 ru = "Название"
 [instance.content.sort_key.mod_id]
 en = "Mod Id"
+hu = "Mod ID"
 ru = "ID мода"
 [instance.content.sort_key.filename]
 en = "Filename"
+hu = "Fájlnév"
 ru = "Имя файла"
 [instance.content.sort_key.modified_time]
 en = "Modified Time"
+hu = "Módosítás ideje"
 ru = "Дата изменения"
 [instance.content.sort_key.filesize]
 en = "Filesize"
+hu = "Fájlméret"
 ru = "Размер файла"
 
 [instance.content.blocked]
 en = "Blocked"
+hu = "Blokkolva"
 ru = "Заблокировано"
 [instance.content.download]
 en = "Download"
+hu = "Letöltések"
 ru = "Скачать"
 [instance.content.downloading_children]
 en = "Downloading children"
+hu = "Gyermekek letöltése"
 ru = "Загрузка дочернего контента"
 [instance.content.error_downloading_children]
 en = "Error downloading children"
+hu = "Hiba a gyermekek letöltésekor"
 ru = "Ошибка загрузки дочернего контента"
 [instance.content.file_id]
 en = "File ID: ${file_id: u32}"
+hu = "Fájl ID: ${file_id: u32}"
 ru = "ID файла: ${file_id: u32}"
 [instance.content.sort_prefix]
 en = "Sort: "
+hu = "Rendezés: "
 ru = "Сортировка: "
 [instance.content.enabled_first]
 en = "Enabled first"
+hu = "Bekapcsolt először"
 ru = "Сначала включённые"
 [instance.content.install.file_invalid_sha1]
 en = "File ${filename: &str} has invalid sha1: ${sha1: &str}"
+hu = "A(z) ${filename: &str} fájlhoz tartozó sha1 helytelen: ${sha1: &str}"
 ru = "Файл ${filename: &str} имеет неверный SHA1: ${sha1: &str}"
 [instance.select_empty_directory]
 en = "Select empty directory"
+hu = "Üres mappa választása"
 ru = "Выберите пустую папку"
 
 [instance.already_running.title]
 en = "Instance already running"
+hu = "A példány már fut"
 ru = "Экземпляр уже запущен"
 [instance.already_running.body]
 en = "Starting it again may cause malfunction or corrupt your saved worlds."
+hu = "Az egyszerre többször indítása hibákat okozhat vagy korruptálhatja a mentett világaid"
 ru = "Повторный запуск может привести к неполадкам или повреждению сохранённых миров."
 [instance.already_running.body2]
 en = "We cannot take responsibility for any issues if you choose to start another game. Would you like to continue anyway?"
+hu = "Nem vállalunk felelősséget bármilyen problémáért ha mégegyet elindítasz. Így is elakarod indítani?"
 ru = "Мы не несём ответственности за возможные проблемы из-за нескольких запущенных копий игры. Продолжить?"
 [instance.already_running.start_anyway]
 en = "Start anyway"
+hu = "Indítsd el ígyis"
 ru = "Всё равно запустить"
 
 [instance.sync.label]
@@ -2605,15 +2635,19 @@ sv = "Skins kan inte tillämpas på offline-konton"
 ru = "Скины нельзя применить к автономным учётным записям"
 [skins.select_account]
 en = "Select an account to view/edit skins"
+hu = "Válassz egy fiókot a kinézetek megnézéséhez/szerkesztéséhez"
 ru = "Выберите учётную запись для просмотра/изменения скинов"
 [skins.player_model.yaw]
 en = "Yaw: ${value: i32}°"
+hu = "Forgás: ${value: i32}°"
 ru = "Поворот: ${value: i32}°"
 [skins.player_model.pitch]
 en = "Pitch: ${value: i32}°"
+hu = "Dőlés: ${value: i32}°"
 ru = "Наклон: ${value: i32}°"
 [skins.player_model.animation]
 en = "Animation"
+hu = "Animáció"
 ru = "Анимация"
 [skins.add_from_file]
 en = "Add from file"
@@ -2624,7 +2658,7 @@ ru = "Добавить из файла"
 [skins.select_skin]
 en = "Select Skin"
 de = "Wähle einen Skin aus"
-hu = "Válassz egy kinézetet"
+hu = "Kinézet választása"
 sv = "Välj ett skinn"
 ru = "Выбрать скин"
 [skins.copy_from_player]
@@ -2690,45 +2724,59 @@ sv = "Fel vid inloggningen"
 ru = "Ошибка при входе"
 [import.label]
 en = "Import"
+hu = "Importálás"
 ru = "Импорт"
 [import.from]
 en = "Import from ${launcher: &str}"
+hu = "Importálás innen: ${launcher: &str}"
 ru = "Импорт из ${launcher: &str}"
 [import.from.modrinth]
 en = "Import Modrinth Pack (.mrpack)"
+hu = "Modrinth csomag importálása (.mrpack)"
 ru = "Импорт сборки Modrinth (.mrpack)"
 [import.from.modrinth.select]
 en = "Select Modrinth Pack"
+hu = "Válassz Modrinth csomagot"
 ru = "Выбрать сборку Modrinth"
 [import.from.label]
 en = "Import From ${launcher: &str}"
+hu = "Importálás innen: ${launcher: &str}"
 ru = "Импортировать из ${launcher: &str}"
 [import.pick_folder]
 en = "Select launcher folder"
+hu = "Indító mappa kiválasztása"
 ru = "Выберите папку лаунчера"
 [import.select_folder.label]
 en = "Select Folder"
+hu = "Mappa választása"
 ru = "Выбор папки"
 [import.detected_files]
 en = "Detected launcher files"
+hu = "Indító fájlok megtalálva"
 ru = "Файлы лаунчера найдены"
 [import.no_detected_files]
 en = "Unable to detect launcher files"
+hu = "Nem sikerült megtalálni az indító fájlokat"
 ru = "Файлы лаунчера не найдены"
 [import.loading_launcher_data]
 en = "Loading launcher data..."
+hu = "Indító adatainak betöltése"
 ru = "Загрузка данных лаунчера..."
 [import.import_accounts]
 en = "Import Accounts"
+hu = "Fiókok importálása"
 ru = "Импортировать учётные записи"
 [import.import_instances]
 en = "Import Instances"
+hu = "Példányok importálása"
 ru = "Импортировать экземпляры"
 [import.already_exists]
 en = "Already exists"
+hu = "Már létezik"
 ru = "Уже существует"
 [import.error_importing]
 en = "Error importing"
+hu = "Hiba importáláskor"
 ru = "Ошибка импорта"
 [import.disabled]
 en = "Please select one of the above to import from ${launcher: &str}"
@@ -2745,10 +2793,13 @@ ru = "Импортировать выбранное из ${launcher: &str}"
 
 [time.h]
 en = "h"
+hu = "ó"
 ru = "ч"
 [time.m]
 en = "m"
+hu = "p"
 ru = "м"
 [time.s]
 en = "s"
+hu = "mp"
 ru = "с"
