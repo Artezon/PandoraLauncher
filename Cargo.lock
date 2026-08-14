@@ -233,7 +233,7 @@ version = "1.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9e231f6134f61b71076a3eab506c379d4f36122f2af15a9ff04415ea4c3339e2"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -244,7 +244,7 @@ checksum = "3e0633414522a32ffaac8ac6cc8f748e090c5717661fddeea04219e2344f5f2a"
 dependencies = [
  "anstyle",
  "once_cell_polyfill",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -751,7 +751,6 @@ dependencies = [
  "ustr",
  "uuid",
  "walkdir",
- "winapi-util",
  "windows 0.62.2",
  "zip",
 ]
@@ -6620,7 +6619,7 @@ checksum = "d9dd7ab4af0363d5ccfd2838d782a28196cf32a5cc2e4fe3c5dc83f2be588b8b"
 dependencies = [
  "cfg-if",
  "libc",
- "rustix 1.1.4",
+ "rustix 1.1.2",
  "windows 0.62.2",
 ]
 
