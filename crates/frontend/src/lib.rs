@@ -229,6 +229,7 @@ pub fn open_main_window(data: &DataEntities, cx: &mut App) -> AnyWindowHandle {
                 appears_transparent: use_custom_titlebar,
                 ..Default::default()
             }),
+            app_owns_titlebar_drag: use_custom_titlebar,
             window_bounds,
             window_decorations: Some(if use_custom_titlebar { WindowDecorations::Client } else { WindowDecorations::Server }),
             ..Default::default()
