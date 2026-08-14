@@ -7,8 +7,7 @@ use bridge::{
     safe_path::SafePath,
 };
 
-use crate::{BackendState, create_content_library_path, hard_link_or_copy, has_multiple_hard_links, is_single_component_path_str, symlink_dir_or_file};
-use crate::export::{is_mod_file, is_resourcepack_file, is_shaderpack_file};
+use crate::BackendState;
 
 fn is_content_file(rel: &Path) -> bool {
     let Ok(rel) = rel.strip_prefix(".minecraft") else {
@@ -17,12 +16,12 @@ fn is_content_file(rel: &Path) -> bool {
     let Some(rel) = SafePath::from_std_path(&rel) else {
         return false;
     };
-    is_mod_file(&rel) || is_resourcepack_file(&rel) || is_shaderpack_file(&rel)
+    crate::export::is_mod_file(&rel) || crate::export::is_resourcepack_file(&rel) || crate::export::is_shaderpack_file(&rel)
 }
 
 fn find_content_library_path(content_library_dir: &Path, hash: [u8; 20], path: &Path) -> Option<PathBuf> {
     let extension = path.extension().and_then(|s| s.to_str());
-    let lib_path = create_content_library_path(content_library_dir, hash, extension);
+    let lib_path = crate::create_content_library_path(content_library_dir, hash, extension);
     if lib_path.exists() {
         return Some(lib_path);
     }
@@ -32,7 +31,7 @@ fn find_content_library_path(content_library_dir: &Path, hash: [u8; 20], path: &
         .and_then(|filename| filename.strip_suffix(".disabled"))
         .and_then(|base| Path::new(base).extension())
         .and_then(|s| s.to_str());
-    let lib_path = create_content_library_path(content_library_dir, hash, disabled_extension);
+    let lib_path = crate::create_content_library_path(content_library_dir, hash, disabled_extension);
     lib_path.exists().then_some(lib_path)
 }
 
@@ -161,13 +160,15 @@ fn duplicate_with_content_library(
             continue;
         }
 
-        if *is_library_eligible && has_multiple_hard_links(source_path).unwrap_or(true) {
+        if *is_library_eligible && crate::has_multiple_hard_links(source_path).unwrap_or(true) {
             if let Ok(hash) = hash_file(source_path, &mut buf, check_cancel) {
                 if let Some(lib_path) = find_content_library_path(content_library_dir, hash, source_path) {
-                    if hard_link_or_copy(&lib_path, &dest).is_ok() {
-                        files_done += 1;
-                        progress(files_done, total_files);
-                        continue;
+                    if crate::are_files_hard_linked(&source_path, &lib_path).unwrap_or(false) {
+                        if crate::hard_link_or_copy(&lib_path, &dest).is_ok() {
+                            files_done += 1;
+                            progress(files_done, total_files);
+                            continue;
+                        }
                     }
                 }
             }
@@ -181,13 +182,13 @@ fn duplicate_with_content_library(
     for (relative, internal) in &internal_symlinks {
         let dest = to.join(relative);
         let target = to.join(internal);
-        if let Err(err) = symlink_dir_or_file(&target, &dest) {
+        if let Err(err) = crate::symlink_dir_or_file(&target, &dest) {
             return Err(err);
         }
     }
     for (relative, target) in &external_symlinks {
         let dest = to.join(relative);
-        if let Err(err) = symlink_dir_or_file(&target, &dest) {
+        if let Err(err) = crate::symlink_dir_or_file(&target, &dest) {
             return Err(err);
         }
     }
@@ -216,7 +217,7 @@ pub async fn duplicate_instance(
     name: &str,
     modal_action: ModalAction,
 ) {
-    if !is_single_component_path_str(name) {
+    if !crate::is_single_component_path_str(name) {
         modal_action.set_error_message(format!("Unable to duplicate instance, name must not be a path: {name}").into());
         modal_action.set_finished();
         return;
