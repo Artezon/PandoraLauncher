@@ -44,6 +44,7 @@ impl InstanceEntries {
                 servers: cx.new(|_| [].into()),
                 content_states,
                 content: enum_map::EnumMap::from_fn(|_| cx.new(|_| [].into())),
+                live_game_output: None,
             };
             instance.title = instance.create_title();
 
@@ -209,6 +210,7 @@ pub struct InstanceEntry {
     pub servers: Entity<Arc<[InstanceServerSummary]>>,
     pub content_states: ContentStates,
     pub content: enum_map::EnumMap<ContentFolder, Entity<Arc<[InstanceContentSummary]>>>,
+    pub live_game_output: Option<Entity<crate::game_output::GameOutputRoot>>,
 }
 
 #[derive(Clone)]

@@ -10,7 +10,7 @@ use bridge::{
 use gpui::{prelude::*, *};
 use gpui_component::{Root, Theme, WindowExt, scroll::ScrollableElement, v_flex};
 
-use crate::{Backwards, CloseWindow, Forwards, MAIN_FONT, OpenSettings, entity::DataEntities, game_output::{GameOutput, GameOutputRoot}, interface_config::{InterfaceConfig, LiveGameOutputDisplay}, modals, ui::{LauncherUI, PageType}};
+use crate::{Backwards, CloseWindow, Forwards, MAIN_FONT, OpenSettings, entity::DataEntities, game_output::{GameOutput, GameOutputRoot}, interface_config::{InterfaceConfig, LiveGameOutputDisplay}, modals, pages::instance::instance_page::InstanceSubpageType, ui::{LauncherUI, PageType}};
 
 pub struct LauncherRootGlobal {
     pub root: Entity<LauncherRoot>,
@@ -150,7 +150,7 @@ pub fn start_instance(
     id: InstanceID,
     name: SharedString,
     quick_play: Option<QuickPlayLaunch>,
-    backend_handle: &BackendHandle,
+    data: &DataEntities,
     window: &mut Window,
     cx: &mut App,
 ) {
@@ -165,7 +165,7 @@ pub fn start_instance(
         Some(sender)
     };
 
-    backend_handle.send(MessageToBackend::StartInstance {
+    data.backend_handle.send(MessageToBackend::StartInstance {
         id,
         quick_play,
         live_game_output,
@@ -175,6 +175,8 @@ pub fn start_instance(
     let title: SharedString = t::instance::start::title(&name).into();
     modals::generic::show_modal(window, cx, title, t::instance::start::error().into(), modal_action);
 
+    let window_handle = window.window_handle();
+    let data = data.clone();
     cx.spawn(async move |cx| {
         let Ok(receiver) = receiver.await else {
             return;
@@ -198,6 +200,25 @@ pub fn start_instance(
                     let game_output_root = cx.new(|cx| GameOutputRoot::new(game_output.clone(), window, cx));
                     window.activate_window();
                     cx.new(|cx| Root::new(game_output_root, window, cx))
+                });
+            },
+            LiveGameOutputDisplay::TabOnInstancePage => {
+                _ = cx.update_window(window_handle, |_, window, cx| {
+                    let game_output = cx.new(|cx| GameOutput::new(receiver, cx));
+                    let game_output_root = cx.new(|cx| GameOutputRoot::new(game_output.clone(), window, cx));
+
+                    let Some(instance_entry) = data.instances.read(cx).entries.get(&id).cloned() else {
+                        return;
+                    };
+
+                    instance_entry.update(cx, |entry, _| {
+                        entry.live_game_output = Some(game_output_root);
+                    });
+
+                    let config = InterfaceConfig::get(cx);
+                    if matches!(config.main_page, PageType::InstancePage { .. }) && config.instance_subpage != InstanceSubpageType::LiveGameOutput {
+                        InterfaceConfig::get_mut(cx).instance_subpage = InstanceSubpageType::LiveGameOutput;
+                    }
                 });
             },
         }

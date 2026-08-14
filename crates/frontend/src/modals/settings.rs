@@ -99,6 +99,10 @@ pub fn build_settings_sheet(data: &DataEntities, window: &mut Window, cx: &mut A
                 name: "Separate Window".into(),
                 item: LiveGameOutputDisplay::SeparateWindow,
             },
+            NamedDropdownItem {
+                name: "Tab on Instance Page".into(),
+                item: LiveGameOutputDisplay::TabOnInstancePage,
+            },
         ], current_live_game_output_display, window, cx);
 
         cx.subscribe(&live_game_output_select, |_, _, event, cx| {

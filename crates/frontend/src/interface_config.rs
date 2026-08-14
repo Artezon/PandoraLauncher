@@ -88,6 +88,7 @@ pub enum LiveGameOutputDisplay {
     Hidden,
     #[default]
     SeparateWindow,
+    TabOnInstancePage,
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, strum::EnumIter)]

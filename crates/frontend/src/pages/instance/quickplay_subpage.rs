@@ -12,7 +12,7 @@ use gpui_component::{
 };
 
 use crate::{
-    entity::instance::InstanceEntry, icon::PandoraIcon, interface_config::InterfaceConfig, png_render_cache, root,
+    entity::{DataEntities, instance::InstanceEntry}, icon::PandoraIcon, interface_config::InterfaceConfig, png_render_cache, root,
 };
 
 pub struct InstanceQuickplaySubpage {
@@ -29,7 +29,7 @@ pub struct InstanceQuickplaySubpage {
 impl InstanceQuickplaySubpage {
     pub fn new(
         instance: &Entity<InstanceEntry>,
-        backend_handle: BackendHandle,
+        data: &DataEntities,
         mut window: &mut gpui::Window,
         cx: &mut gpui::Context<Self>,
     ) -> Self {
@@ -43,7 +43,7 @@ impl InstanceQuickplaySubpage {
         let worlds_list_delegate = WorldsListDelegate {
             id: instance_id,
             name: instance.name.clone(),
-            backend_handle: backend_handle.clone(),
+            data: data.clone(),
             worlds: instance.worlds.read(cx).to_vec(),
             searched: instance.worlds.read(cx).to_vec(),
         };
@@ -51,7 +51,7 @@ impl InstanceQuickplaySubpage {
         let servers_list_delegate = ServersListDelegate {
             id: instance_id,
             name: instance.name.clone(),
-            backend_handle: backend_handle.clone(),
+            data: data.clone(),
             servers: instance.servers.read(cx).to_vec(),
             searched: instance.servers.read(cx).to_vec(),
             search_query: String::new(),
@@ -93,7 +93,7 @@ impl InstanceQuickplaySubpage {
 
         Self {
             instance: instance_entity,
-            backend_handle,
+            backend_handle: data.backend_handle.clone(),
             worlds_state,
             world_list,
             servers_state,
@@ -210,7 +210,7 @@ fn format_playtime(total_secs: u64) -> SharedString {
 pub struct WorldsListDelegate {
     id: InstanceID,
     name: SharedString,
-    backend_handle: BackendHandle,
+    data: DataEntities,
     worlds: Vec<InstanceWorldSummary>,
     searched: Vec<InstanceWorldSummary>,
 }
@@ -249,7 +249,7 @@ impl ListDelegate for WorldsListDelegate {
 
         let id = self.id;
         let name = self.name.clone();
-        let backend_handle = self.backend_handle.clone();
+        let data = self.data.clone();
         let target = summary.level_path.file_name().unwrap().to_owned();
         let item = ListItem::new(ix).p_1().child(
             h_flex()
@@ -261,7 +261,7 @@ impl ListDelegate for WorldsListDelegate {
                                 id,
                                 name.clone(),
                                 Some(QuickPlayLaunch::Singleplayer(target.clone())),
-                                &backend_handle,
+                                &data,
                                 window,
                                 cx,
                             );
@@ -288,7 +288,7 @@ impl ListDelegate for WorldsListDelegate {
 pub struct ServersListDelegate {
     id: InstanceID,
     name: SharedString,
-    backend_handle: BackendHandle,
+    data: DataEntities,
     servers: Vec<InstanceServerSummary>,
     searched: Vec<InstanceServerSummary>,
     search_query: String,
@@ -389,7 +389,7 @@ impl ListDelegate for ServersListDelegate {
 
         let id = self.id;
         let name = self.name.clone();
-        let backend_handle = self.backend_handle.clone();
+        let data = self.data.clone();
         let target = OsString::from(summary.ip.to_string());
         let row_index = ix.row;
 
@@ -431,7 +431,7 @@ impl ListDelegate for ServersListDelegate {
                                     id,
                                     name.clone(),
                                     Some(QuickPlayLaunch::Multiplayer(target.clone())),
-                                    &backend_handle,
+                                    &data,
                                     window,
                                     cx,
                                 );
@@ -485,7 +485,7 @@ impl ServersListDelegate {
             return;
         }
 
-        self.backend_handle.send(MessageToBackend::ReorderServers {
+        self.data.backend_handle.send(MessageToBackend::ReorderServers {
             id: self.id,
             from_index,
             to_index,

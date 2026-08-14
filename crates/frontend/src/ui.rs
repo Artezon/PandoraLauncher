@@ -278,7 +278,6 @@ impl LauncherUI {
                     CurseforgeSearchPage::new(installing_for.flatten(), data, window, cx)
                 });
                 Ok(LauncherPage::Curseforge(page))
-
             },
             PageType::Import => {
                 Ok(LauncherPage::Import(cx.new(|cx| ImportPage::new(data, window, cx))))

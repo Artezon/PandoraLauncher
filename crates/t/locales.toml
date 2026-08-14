@@ -1239,6 +1239,8 @@ de = "Server"
 hu = "Szerverek"
 sv = "Servrar"
 ru = "Серверы"
+[instance.live_game_output]
+en = "Live Game Output"
 [instance.total_playtime]
 en = "Total Playtime"
 pl = "Całkowity czas gry"
