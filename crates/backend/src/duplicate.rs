@@ -161,7 +161,7 @@ fn duplicate_with_content_library(
             continue;
         }
 
-        if *is_library_eligible && has_multiple_hard_links(source_path) {
+        if *is_library_eligible && has_multiple_hard_links(source_path).unwrap_or(true) {
             if let Ok(hash) = hash_file(source_path, &mut buf, check_cancel) {
                 if let Some(lib_path) = find_content_library_path(content_library_dir, hash, source_path) {
                     if hard_link_or_copy(&lib_path, &dest).is_ok() {
