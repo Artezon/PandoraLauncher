@@ -134,12 +134,6 @@ impl Element for ResizePanel {
             size: Size::new(RESIZE_PADDING*2 + RESIZE_WIDTH, bounds.size.height),
         };
 
-        if cfg!(target_os = "macos") && line_bounds.origin.y < px(28.0) {
-            let difference = px(28.0) - line_bounds.origin.y;
-            line_bounds.origin.y += difference;
-            line_bounds.size.height -= difference;
-        }
-
         Some(window.insert_hitbox(line_bounds, gpui::HitboxBehavior::BlockMouse))
     }
 
