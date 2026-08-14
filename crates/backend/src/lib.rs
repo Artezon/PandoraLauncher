@@ -361,28 +361,18 @@ pub fn hard_link_or_copy(from: &Path, to: &Path) -> std::io::Result<()> {
     }
 }
 
-pub(crate) fn has_multiple_hard_links(path: &Path) -> bool {
+pub(crate) fn has_multiple_hard_links(path: &Path) -> Option<bool> {
     #[cfg(unix)]
     {
-        let Ok(metadata) = std::fs::metadata(path) else {
-            return true;
-        };
+        let metadata = std::fs::metadata(path).ok()?;
         use std::os::unix::fs::MetadataExt;
-        metadata.nlink() > 1
+        Some(metadata.nlink() > 1)
     }
     #[cfg(windows)]
     {
-        let Ok(handle) = winapi_util::Handle::from_path(path) else {
-            return true;
-        };
-        let Ok(info) = winapi_util::file::information(&handle) else {
-            return true;
-        };
-        info.number_of_links() > 1
-    }
-    #[cfg(not(any(unix, windows)))]
-    {
-        true
+        let metadata = std::fs::metadata(path).ok()?;
+        use std::os::windows::fs::MetadataExt;
+        metadata.number_of_links()? > 1
     }
 }
 
