@@ -4,20 +4,9 @@ use sha1::Digest;
 use bridge::{
     instance::InstanceID,
     modal_action::{ModalAction, ProgressTracker, ProgressTrackerFinishType},
-    safe_path::SafePath,
 };
 
 use crate::BackendState;
-
-fn is_content_file(rel: &Path) -> bool {
-    let Ok(rel) = rel.strip_prefix(".minecraft") else {
-        return false;
-    };
-    let Some(rel) = SafePath::from_std_path(&rel) else {
-        return false;
-    };
-    crate::export::is_mod_file(&rel) || crate::export::is_resourcepack_file(&rel) || crate::export::is_shaderpack_file(&rel)
-}
 
 fn find_content_library_path(content_library_dir: &Path, hash: [u8; 20], path: &Path) -> Option<PathBuf> {
     let extension = path.extension().and_then(|s| s.to_str());
@@ -117,8 +106,7 @@ fn duplicate_with_content_library(
                     external_symlinks.push((relative.to_path_buf(), target));
                 }
             } else if file_type.is_file() {
-                let eligible = is_content_file(&relative);
-                files.push((relative.to_path_buf(), path, eligible));
+                files.push((relative.to_path_buf(), path));
             } else if file_type.is_dir() {
                 #[cfg(windows)]
                 if let Ok(target) = junction::get_target(&path) {
@@ -150,7 +138,7 @@ fn duplicate_with_content_library(
 
     let mut files_done = 0_u64;
     let mut buf = vec![0_u8; 128 * 1024];
-    for (relative, source_path, is_library_eligible) in &files {
+    for (relative, source_path) in &files {
         check_cancel()?;
         let dest = to.join(relative);
 
@@ -160,7 +148,9 @@ fn duplicate_with_content_library(
             continue;
         }
 
-        if *is_library_eligible && crate::has_multiple_hard_links(source_path).unwrap_or(true) {
+        // If the source_path was hard linked from the content library
+        // We will make the duplicated file also hard linked
+        if crate::has_multiple_hard_links(source_path).unwrap_or(true) {
             if let Ok(hash) = hash_file(source_path, &mut buf, check_cancel) {
                 if let Some(lib_path) = find_content_library_path(content_library_dir, hash, source_path) {
                     if crate::are_files_hard_linked(&source_path, &lib_path).unwrap_or(false) {

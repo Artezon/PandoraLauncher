@@ -970,7 +970,7 @@ fn murmur2_32(data: &[u8]) -> u32 {
     h
 }
 
-pub(crate) fn is_mod_file(path: &SafePath) -> bool {
+fn is_mod_file(path: &SafePath) -> bool {
     if !path.starts_with("mods") {
         return false;
     }
@@ -987,7 +987,7 @@ pub(crate) fn is_mod_file(path: &SafePath) -> bool {
         || filename.ends_with(".litemod.disabled")
 }
 
-pub(crate) fn is_resourcepack_file(path: &SafePath) -> bool {
+fn is_resourcepack_file(path: &SafePath) -> bool {
     if !path.starts_with("resourcepacks") {
         return false;
     }
@@ -999,7 +999,7 @@ pub(crate) fn is_resourcepack_file(path: &SafePath) -> bool {
     filename.ends_with(".zip") || filename.ends_with(".zip.disabled")
 }
 
-pub(crate) fn is_shaderpack_file(path: &SafePath) -> bool {
+fn is_shaderpack_file(path: &SafePath) -> bool {
     if !path.starts_with("shaderpacks") {
         return false;
     }
