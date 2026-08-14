@@ -85,10 +85,10 @@ pub struct InterfaceConfig {
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, strum::EnumIter)]
 #[serde(rename_all = "lowercase")]
 pub enum LiveGameOutputDisplay {
-    Hidden,
     #[default]
-    SeparateWindow,
     TabOnInstancePage,
+    SeparateWindow,
+    Hidden,
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, strum::EnumIter)]

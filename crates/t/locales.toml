@@ -2917,10 +2917,12 @@ sv = "Fönster"
 ru = "Окна"
 [settings.windows.live_game_output_display]
 en = "Live game output display"
-[settings.windows.live_game_output_display.hidden]
-en = "Hidden"
+[settings.windows.live_game_output_display.tab_on_instance_page]
+en = "Tab on Instance Page"
 [settings.windows.live_game_output_display.separate_window]
 en = "Separate Window"
+[settings.windows.live_game_output_display.hidden]
+en = "Hidden"
 [settings.windows.hide_main_window]
 en = "Hide main window on launch"
 pl = "Ukryj główne okno przy uruchomieniu"

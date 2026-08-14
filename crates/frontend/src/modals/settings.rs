@@ -92,16 +92,16 @@ pub fn build_settings_sheet(data: &DataEntities, window: &mut Window, cx: &mut A
 
         let live_game_output_select = NamedDropdown::create_and_select(vec![
             NamedDropdownItem {
-                name: "Hidden".into(),
-                item: LiveGameOutputDisplay::Hidden,
+                name: t::settings::windows::live_game_output_display::tab_on_instance_page().into(),
+                item: LiveGameOutputDisplay::TabOnInstancePage,
             },
             NamedDropdownItem {
-                name: "Separate Window".into(),
+                name: t::settings::windows::live_game_output_display::separate_window().into(),
                 item: LiveGameOutputDisplay::SeparateWindow,
             },
             NamedDropdownItem {
-                name: "Tab on Instance Page".into(),
-                item: LiveGameOutputDisplay::TabOnInstancePage,
+                name: t::settings::windows::live_game_output_display::hidden().into(),
+                item: LiveGameOutputDisplay::Hidden,
             },
         ], current_live_game_output_display, window, cx);
 
