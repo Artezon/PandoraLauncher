@@ -17,6 +17,7 @@ mod backend_handler;
 mod account;
 mod arcfactory;
 mod directories;
+mod duplicate;
 mod export;
 mod install_content;
 mod instance;
@@ -383,6 +384,21 @@ pub fn hard_link_or_copy(from: &Path, to: &Path) -> std::io::Result<()> {
         Err(err)
     } else {
         Ok(())
+    }
+}
+
+pub(crate) fn has_multiple_hard_links(path: &Path) -> Option<bool> {
+    #[cfg(unix)]
+    {
+        let metadata = std::fs::metadata(path).ok()?;
+        use std::os::unix::fs::MetadataExt;
+        Some(metadata.nlink() > 1)
+    }
+    #[cfg(windows)]
+    {
+        let metadata = std::fs::metadata(path).ok()?;
+        use std::os::windows::fs::MetadataExt;
+        metadata.number_of_links()? > 1
     }
 }
 
