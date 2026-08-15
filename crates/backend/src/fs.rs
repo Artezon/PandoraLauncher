@@ -339,22 +339,35 @@ pub fn symlink_dir_or_file(original: &Path, link: &Path) -> std::io::Result<()> 
     compile_error!("Unsupported platform: can't symlink");
 }
 
-pub fn hard_link_or_copy(from: &Path, to: &Path) -> std::io::Result<()> {
+pub fn fastcopy(from: &Path, to: &Path, reflink: bool, mut hard_link: bool) -> std::io::Result<()> {
     match std::fs::remove_file(to) {
         Ok(()) => {},
         Err(err) if err.kind() == ErrorKind::NotFound => {},
         Err(err) => return Err(err),
     }
 
-    if let Err(err) = std::fs::hard_link(from, to) {
+    if reflink {
+        let Err(err) = reflink_copy::reflink(from, to) else {
+            return Ok(());
+        };
+
         if err.kind() == ErrorKind::CrossesDevices {
-            // Cannot hard link across devices, do a copy instead
-            return std::fs::copy(from, to).map(|_| ());
+            // If the paths are on different devices, hard linking will also fail
+            hard_link = false;
         }
-        Err(err)
-    } else {
-        Ok(())
     }
+
+    if hard_link {
+        if let Err(err) = std::fs::hard_link(from, to) {
+            if err.kind() != ErrorKind::CrossesDevices {
+                return Err(err);
+            }
+        } else {
+            return Ok(());
+        }
+    }
+
+    std::fs::copy(from, to).map(|_| ())
 }
 
 pub fn rename_with_fallback_across_devices(from: &Path, to: &Path) -> std::io::Result<()> {

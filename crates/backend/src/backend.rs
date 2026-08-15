@@ -989,8 +989,8 @@ impl BackendState {
                                     aux_changed = true;
                                 }
 
-                                let _ = std::fs::create_dir_all(dest_path.parent().unwrap());
-                                let _ = std::fs::copy(content_path, dest_path);
+                                _ = std::fs::create_dir_all(dest_path.parent().unwrap());
+                                _ = crate::fs::fastcopy(&content_path, &dest_path, true, false);
                             }
                         }
                     }
@@ -1032,7 +1032,7 @@ impl BackendState {
 
                     if !path.exists() {
                         log::error!("Unable to copy from content library because path doesn't exist: {:?}", path);
-                    } else if let Err(err) = std::fs::copy(&path, &target_path) {
+                    } else if let Err(err) = crate::fs::fastcopy(&path, &target_path, true, false) {
                         log::error!("Error copying mod from {:?} to {:?}:\n{:?}", path, target_path, err);
                     }
                 },

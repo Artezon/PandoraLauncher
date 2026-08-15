@@ -78,7 +78,7 @@ pub fn apply_to_instance(sync_targets: &SyncTargets, directories: &LauncherDirec
                     if let Some(parent) = target.parent() {
                         _ = std::fs::create_dir_all(parent);
                     }
-                    _ = std::fs::copy(latest, target);
+                    _ = crate::fs::fastcopy(&latest, &target, true, false);
                 }
             }
         } else {

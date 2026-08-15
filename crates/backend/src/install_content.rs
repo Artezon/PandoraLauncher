@@ -251,7 +251,7 @@ impl BackendState {
 
                 let _ = std::fs::create_dir_all(target_path.parent().unwrap());
 
-                match crate::fs::hard_link_or_copy(&install.from, &target_path) {
+                match crate::fs::fastcopy(&install.from, &target_path, true, true) {
                     Ok(()) => {
                         if let Some(replace) = install.replace {
                             self.replace_aux_path(&replace, &install.mod_summary, &target_path);

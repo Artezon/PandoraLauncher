@@ -485,7 +485,7 @@ fn import_instances_from_multimc(backend: &BackendState, import_job: &ImportFrom
         }
 
         // Copy icon
-        _ = std::fs::copy(to_import.folder.join("icon.png"), to_import.pandora_path.join("icon.png"));
+        _ = crate::fs::fastcopy(&to_import.folder.join("icon.png"), &to_import.pandora_path.join("icon.png"), true, false);
 
         // Write info_v1.json
         let info_path = to_import.pandora_path.join("info_v1.json");

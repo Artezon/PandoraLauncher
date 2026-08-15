@@ -154,7 +154,7 @@ fn duplicate_with_content_library(
             if let Ok(hash) = hash_file(source_path, &mut buf, check_cancel) {
                 if let Some(lib_path) = find_content_library_path(content_library_dir, hash, source_path) {
                     if let Ok(lib_metadata) = crate::fs::FileMetadata::new(&lib_path) && source_metadata.is_same(&lib_metadata) {
-                        if crate::fs::hard_link_or_copy(&lib_path, &dest).is_ok() {
+                        if crate::fs::fastcopy(&lib_path, &dest, false, true).is_ok() {
                             files_done += 1;
                             progress(files_done, total_files);
                             continue;
