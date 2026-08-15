@@ -150,10 +150,10 @@ fn duplicate_with_content_library(
 
         // If the source_path was hard linked from the content library
         // We will make the duplicated file also hard linked
-        if crate::has_multiple_hard_links(source_path).unwrap_or(true) {
+        if let Ok(source_metadata) = crate::fs::FileMetadata::new(source_path) && source_metadata.number_of_links() > 1 {
             if let Ok(hash) = hash_file(source_path, &mut buf, check_cancel) {
                 if let Some(lib_path) = find_content_library_path(content_library_dir, hash, source_path) {
-                    if crate::are_files_hard_linked(&source_path, &lib_path).unwrap_or(false) {
+                    if let Ok(lib_metadata) = crate::fs::FileMetadata::new(&lib_path) && source_metadata.is_same(&lib_metadata) {
                         if crate::hard_link_or_copy(&lib_path, &dest).is_ok() {
                             files_done += 1;
                             progress(files_done, total_files);
