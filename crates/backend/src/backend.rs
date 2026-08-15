@@ -520,7 +520,6 @@ impl BackendState {
 
         if let Some(login_tracker) = login_tracker {
             login_tracker.set_total(AUTH_STAGE_COUNT as usize + 1);
-            login_tracker.notify();
         }
 
         let mut last_auth_stage = None;
@@ -535,7 +534,6 @@ impl BackendState {
 
             if let Some(login_tracker) = login_tracker {
                 login_tracker.set_count(stage as usize + 1);
-                login_tracker.notify();
             }
 
             if let Some(last_stage) = last_auth_stage {
@@ -678,7 +676,6 @@ impl BackendState {
                         Ok(profile) => {
                             if let Some(login_tracker) = login_tracker {
                                 login_tracker.set_count(AUTH_STAGE_COUNT as usize + 1);
-                                login_tracker.notify();
                             }
 
                             return Ok((profile, access_token));
@@ -935,10 +932,8 @@ impl BackendState {
             }
 
             if !modpack_install.files.is_empty() {
-                let tracker = ProgressTracker::new("Copying modpack files".into(), self.send.clone());
-                modal_action.trackers.push(tracker.clone());
+                let tracker = modal_action.push_tracker("Copying modpack files".into());
                 tracker.set_total(modpack_install.files.len());
-                tracker.notify();
 
                 let mut aux_changed = false;
 
@@ -996,7 +991,6 @@ impl BackendState {
                     }
 
                     tracker.add_count(1);
-                    tracker.notify();
                 }
 
                 if let Some(aux_path) = &modpack_install.aux_path && aux_changed {
@@ -1006,17 +1000,14 @@ impl BackendState {
                 }
 
                 tracker.set_finished(ProgressTrackerFinishType::Normal);
-                tracker.notify();
             }
         }
     }
 
     fn prelaunch_create_mods_dir(&self, mod_copies: Vec<PrelaunchModCopy>, mods_dir: &Path, modal_action: &ModalAction) {
-        let tracker = ProgressTracker::new("Copying immutable mods directory".into(), self.send.clone());
-        modal_action.trackers.push(tracker.clone());
+        let tracker = modal_action.push_tracker("Copying immutable mods directory".into());
 
         tracker.set_total(mod_copies.len());
-        tracker.notify();
 
         let content_library_dir = &self.directories.content_library_dir.clone();
 
@@ -1043,7 +1034,6 @@ impl BackendState {
                 },
             }
             tracker.add_count(1);
-            tracker.notify();
         }
 
         tracker.set_finished(ProgressTrackerFinishType::Normal);
@@ -1097,10 +1087,8 @@ impl BackendState {
         }
 
         if !curseforge_file_ids.is_empty() {
-            let tracker = ProgressTracker::new("Requesting download URLs from CurseForge".into(), self.send.clone());
-            modal_action.trackers.push(tracker.clone());
+            let tracker = modal_action.push_tracker("Requesting download URLs from CurseForge".into());
             tracker.set_total(1);
-            tracker.notify();
 
             let files_result = self.meta.fetch(&CurseforgeGetFilesMetadataItem(&CurseforgeGetFilesRequest {
                 file_ids: curseforge_file_ids,
@@ -1108,7 +1096,6 @@ impl BackendState {
 
             tracker.set_count(1);
             tracker.set_finished(ProgressTrackerFinishType::from_err(files_result.is_err()));
-            tracker.notify();
 
             if let Ok(files) = files_result {
                 for file in files.data.iter() {

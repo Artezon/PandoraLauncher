@@ -3,7 +3,7 @@ use sha1::Digest;
 
 use bridge::{
     instance::InstanceID,
-    modal_action::{ModalAction, ProgressTracker, ProgressTrackerFinishType},
+    modal_action::{ModalAction, ProgressTrackerFinishType},
 };
 
 use crate::BackendState;
@@ -208,26 +208,22 @@ pub async fn duplicate_instance(
     modal_action: ModalAction,
 ) {
     if !crate::fs::is_single_component_path_str(name) {
-        modal_action.set_error_message(format!("Unable to duplicate instance, name must not be a path: {name}").into());
-        modal_action.set_finished();
+        modal_action.set_finished_with_error(format!("Unable to duplicate instance, name must not be a path: {name}").into());
         return;
     }
     if !sanitize_filename::is_sanitized_with_options(name, sanitize_filename::OptionsForCheck { windows: true, ..Default::default() }) {
-        modal_action.set_error_message(format!("Unable to duplicate instance, name is invalid: {name}").into());
-        modal_action.set_finished();
+        modal_action.set_finished_with_error(format!("Unable to duplicate instance, name is invalid: {name}").into());
         return;
     }
     if backend.instance_state.read().instances.iter().any(|i| i.name == name) {
-        modal_action.set_error_message("Unable to duplicate instance, name is already used".to_string().into());
-        modal_action.set_finished();
+        modal_action.set_finished_with_error("Unable to duplicate instance, name is already used".to_string().into());
         return;
     }
 
     let source = {
         let state = backend.instance_state.read();
         let Some(instance) = state.instances.get(id) else {
-            modal_action.set_error_message("Unable to duplicate instance, unknown id".to_string().into());
-            modal_action.set_finished();
+            modal_action.set_finished_with_error("Unable to duplicate instance, unknown id".to_string().into());
             return;
         };
         instance.root_path.clone()
@@ -236,22 +232,18 @@ pub async fn duplicate_instance(
     let dest = backend.directories.instances_dir.join(name);
 
     if let Err(err) = fs::create_dir(&dest) {
-        modal_action.set_error_message(format!("Unable to create instance directory: {err}").into());
-        modal_action.set_finished();
+        modal_action.set_finished_with_error(format!("Unable to create instance directory: {err}").into());
         return;
     }
 
-    let tracker = ProgressTracker::new("Copying instance files...".into(), backend.send.clone());
-    modal_action.trackers.push(tracker.clone());
+    let tracker = modal_action.push_tracker("Copying instance files...".into());
 
     let result = duplicate_with_content_library(&source, &dest, &backend.directories.content_library_dir, &|current, total| {
         tracker.set_count(current as usize);
         tracker.set_total(total as usize);
-        tracker.notify();
     }, &|| {
         if modal_action.has_requested_cancel() {
             tracker.set_title("Cancelling...".into());
-            tracker.notify();
             Err(Error::new(ErrorKind::Interrupted, "Operation cancelled"))
         } else {
             Ok(())
@@ -261,17 +253,14 @@ pub async fn duplicate_instance(
     match result {
         Ok(()) => {
             tracker.set_finished(ProgressTrackerFinishType::Normal);
-            tracker.notify();
         },
         Err(error) => {
             let _ = fs::remove_dir_all(&dest);
             if modal_action.has_requested_cancel() {
                 tracker.set_finished(ProgressTrackerFinishType::Fast);
-                tracker.notify();
             } else {
                 tracker.set_finished(ProgressTrackerFinishType::Error);
-                tracker.notify();
-                modal_action.set_error_message(error.to_string().into());
+                modal_action.set_finished_with_error(error.to_string().into());
             }
         },
     }
