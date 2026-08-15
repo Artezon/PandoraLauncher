@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, atomic::AtomicBool};
 
 use bridge::modal_action::{ModalAction, ProgressTrackerFinishType};
 use gpui::{prelude::*, *};
@@ -54,7 +54,7 @@ pub fn show_notification_with_note(
                 notification.dismiss(window, cx);
             }
 
-            let (mut progress_entries, needs_animation) = render_progress_trackers(&modal_action);
+            let (mut progress_entries, needs_animation) = render_progress_trackers(&modal_action, 0.0);
             if needs_animation {
                 window.request_animation_frame();
             }
@@ -76,6 +76,7 @@ pub fn show_notification_with_note(
 
 #[derive(Clone)]
 struct ModalRoot {
+    should_move: Arc<AtomicBool>,
     modal_action: ModalAction,
     title: SharedString,
     error_title: SharedString,
@@ -103,24 +104,25 @@ impl ModalRoot {
 
             let mut is_finishing = false;
             let mut modal_opacity = 1.0;
+            let mut elapsed_modal = 0.0;
             if let Some(finished_at) = self.modal_action.get_finished_at() {
                 is_finishing = true;
 
                 let prevent_finish = visit_url.as_ref().map(|v| v.prevent_auto_finish).unwrap_or(false);
 
                 if !prevent_finish {
-                    let elapsed = finished_at.elapsed().as_secs_f32();
+                    elapsed_modal = finished_at.elapsed().as_secs_f32();
                     window.request_animation_frame();
-                    if elapsed >= 2.0 {
+                    if elapsed_modal >= 2.0 {
                         window.remove_window();
                         modal_opacity = 0.0;
-                    } else if elapsed >= 1.0 {
-                        modal_opacity = 2.0 - elapsed;
+                    } else if elapsed_modal >= 1.0 {
+                        modal_opacity = 2.0 - elapsed_modal;
                     }
                 }
             }
 
-            let (mut progress_entries, needs_animation) = render_progress_trackers(&self.modal_action);
+            let (mut progress_entries, needs_animation) = render_progress_trackers(&self.modal_action, elapsed_modal);
 
             if needs_animation {
                 window.request_animation_frame();
@@ -166,13 +168,46 @@ impl ModalRoot {
             .min_h_24()
             .p_4()
             .gap_3()
+            .window_control_area(WindowControlArea::Drag)
+            .on_mouse_down_out({
+                let should_move = self.should_move.clone();
+                move |_, _, _| {
+                    should_move.store(false, std::sync::atomic::Ordering::Relaxed);
+                }
+            })
+            .on_mouse_down(
+                MouseButton::Left,
+                {
+                    let should_move = self.should_move.clone();
+                    move |_, _, _| {
+                        should_move.store(true, std::sync::atomic::Ordering::Relaxed);
+                    }
+                },
+            )
+            .on_mouse_up(
+                MouseButton::Left,
+                {
+                    let should_move = self.should_move.clone();
+                    move |_, _, _| {
+                        should_move.store(false, std::sync::atomic::Ordering::Relaxed);
+                    }
+                },
+            )
+            .on_mouse_move({
+                let should_move = self.should_move.clone();
+                move |_, window, _| {
+                    if should_move.swap(false, std::sync::atomic::Ordering::Relaxed) {
+                        window.start_window_move();
+                    }
+                }
+            })
             .child(DialogTitle::new().child(self.title.clone()))
             .child(content)
             .child(footer)
     }
 }
 
-fn render_progress_trackers(modal_action: &ModalAction) -> (Vec<Div>, bool) {
+fn render_progress_trackers(modal_action: &ModalAction, elapsed_modal: f32) -> (Vec<Div>, bool) {
     modal_action.write_trackers(|trackers| {
         let mut progress_entries = Vec::with_capacity(trackers.len());
         let mut needs_animation = false;
@@ -185,7 +220,7 @@ fn render_progress_trackers(modal_action: &ModalAction) -> (Vec<Div>, bool) {
                     return false;
                 }
 
-                let elapsed = finished_at.elapsed().as_secs_f32();
+                let elapsed = (finished_at.elapsed().as_secs_f32() - elapsed_modal).max(0.0);
                 if elapsed >= 2.0 {
                     return false;
                 }
@@ -210,8 +245,9 @@ fn render_progress_trackers(modal_action: &ModalAction) -> (Vec<Div>, bool) {
                 finishing_tracker_slots -= 1;
 
                 let elapsed = finished_at.elapsed().as_secs_f32();
-                if elapsed >= 1.0 {
-                    opacity = (2.0 - elapsed).max(0.0);
+                let elapsed_fade = (elapsed - elapsed_modal).max(0.0);
+                if elapsed_fade >= 1.0 {
+                    opacity = (2.0 - elapsed_fade).max(0.0);
                 }
 
                 let finish_type = tracker.finish_type();
@@ -353,6 +389,7 @@ pub fn show_modal(
         });
 
         cx.new(|_| ModalRoot {
+            should_move: Arc::new(AtomicBool::new(false)),
             modal_action,
             title,
             error_title,
