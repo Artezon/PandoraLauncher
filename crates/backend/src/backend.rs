@@ -16,7 +16,7 @@ use image::ImageFormat;
 use indexmap::IndexSet;
 use parking_lot::RwLock;
 use reqwest::{StatusCode, redirect::Policy};
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 use schema::{auxiliary::AuxiliaryContentMeta, backend_config::{BackendConfig, ProxyConfig, SyncTargets}, content::{ContentInstallReason, ContentSource}, curseforge::{CachedCurseforgeFileInfo, CurseforgeGetFilesRequest}, instance::InstanceConfiguration, loader::Loader, minecraft_profile::MinecraftProfileResponse};
 use strum::IntoEnumIterator;
 use tokio::sync::{OnceCell, Semaphore, mpsc::Receiver};
@@ -773,49 +773,92 @@ impl BackendState {
 
         let mut mod_copies = Vec::new();
 
-        // Remove .pandora.filename mods (todo: get rid of this)
+        let mut known_files: FxHashSet<Arc<Path>> = FxHashSet::with_capacity_and_hasher(mods.len() * 2, FxBuildHasher);
+        for content in mods.iter() {
+            known_files.insert(content.path.clone());
+            if let Some(aux) = crate::fs::pandora_aux_path_for_content(&content) {
+                known_files.insert(aux.into());
+            }
+        }
+
+        let mut other_files = Vec::new();
         if let Ok(read_dir) = std::fs::read_dir(&mods_dir) {
             for entry in read_dir {
                 let Ok(entry) = entry else {
                     continue;
                 };
                 let path = entry.path();
-                let Some(file_name) = path.file_name() else {
-                    continue;
-                };
 
-                let file_name = file_name.as_encoded_bytes();
-                if file_name.starts_with(b".pandora.") {
-                    log::trace!("Removing temporary mod file {:?}", &file_name);
-                    _ = std::fs::remove_file(entry.path());
+                // Remove .pandora.filename mods (todo: get rid of this)
+                if let Some(file_name) = path.file_name() {
+                    let file_name = file_name.as_encoded_bytes();
+                    if file_name.starts_with(b".pandora.") {
+                        log::trace!("Removing temporary mod file {:?}", &file_name);
+                        _ = std::fs::remove_file(entry.path());
+                        continue;
+                    }
+                }
+
+                if !known_files.contains(&*path) {
+                    if let Ok(relative) = path.strip_prefix(&mods_dir) {
+                        other_files.push(relative.to_path_buf());
+                    }
                 }
             }
         }
 
         self.prelaunch_collect_mods_and_apply_modpack(loader, minecraft_version, &mods, &dot_minecraft_dir, &mods_dir, &mut mod_copies, modal_action).await;
 
-        let sandbox = if let Some(instance) = self.instance_state.write().instances.get_mut(id) {
+        if let Some(instance) = self.instance_state.write().instances.get_mut(id) {
             instance.set_frozen_mods_folder(true);
-            instance.configuration.get().sandbox
-        } else {
-            true
-        };
+        }
 
         let original_mods_dir = root_dir.join("original_mods");
         if let Err(err) = std::fs::rename(&mods_dir, &original_mods_dir) {
             log::error!("Unable to move mods dir ({:?}) to {:?}:\n{:?}", &mods_dir, &original_mods_dir, err);
             return;
         }
+
+        _ = std::fs::create_dir_all(&mods_dir);
+
         self.prelaunch_create_mods_dir(mod_copies, &mods_dir, modal_action);
 
-        // Copy sinytra connector cache
-        if !sandbox {
-            let original_connector = original_mods_dir.join(".connector");
-            if original_connector.exists() {
-                let connector = mods_dir.join(".connector");
-                _ = std::fs::create_dir_all(&connector);
-                _ = crate::fs::copy_content_recursive(&original_connector, &connector, false, &|_, _| {});
+        // Copy any additional files which aren't mods
+        if !other_files.is_empty() {
+            let tracker = modal_action.push_tracker("Copying extra files into mods directory".into());
+            tracker.set_total(other_files.len());
+
+            for other_file in other_files {
+                let from = original_mods_dir.join(&other_file);
+                let to = mods_dir.join(&other_file);
+
+                if from.is_dir() {
+                    let name = other_file.file_name().map(|s| s.to_string_lossy()).unwrap_or_default();
+                    let inner = modal_action.push_tracker(format!("Copying '{}' folder", name).into());
+
+                    _ = std::fs::create_dir_all(&to);
+                    let res = crate::fs::copy_content_recursive(&from, &to, false, &|count, total| {
+                        inner.set_count(count as usize);
+                        inner.set_total(total as usize);
+                    });
+
+                    if let Err(err) = res {
+                        log::error!("Unable to copy folder {:?} to {:?}: {}", from, to, err);
+                        inner.set_finished(ProgressTrackerFinishType::Error);
+                    } else {
+                        inner.set_finished(ProgressTrackerFinishType::Normal);
+                    }
+                } else {
+                    let res = crate::fs::fastcopy(&from, &to, true, false);
+                    if let Err(err) = res {
+                        log::error!("Unable to copy file {:?} to {:?}: {}", from, to, err);
+                    }
+                }
+
+                tracker.add_count(1);
             }
+
+            tracker.set_finished(ProgressTrackerFinishType::Normal);
         }
     }
 
