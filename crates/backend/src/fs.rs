@@ -427,42 +427,40 @@ impl FileMetadata {
 impl FileMetadata {
     pub fn new(path: &Path) -> std::io::Result<Self> {
         use std::os::windows::io::AsRawHandle;
-        use windows::Win32::Storage::FileSystem::FILE_ID_INFO;
+        use windows::Win32::Storage::FileSystem::{FILE_ID_INFO, BY_HANDLE_FILE_INFORMATION};
 
-        let file = std::fs::OpenOptions::new().open(a)?;
-        let handle = file.as_raw_handle() as windows::Win32::Foundation::HANDLE;
+        let file = std::fs::OpenOptions::new().open(path)?;
+        let handle = windows::Win32::Foundation::HANDLE(file.as_raw_handle());
 
         let file_info: BY_HANDLE_FILE_INFORMATION = Default::default();
 
-        let success = unsafe {
+        unsafe {
             windows::Win32::Storage::FileSystem::GetFileInformationByHandle(
                 handle,
-                &mut file_info as *mut _,
-            )
-        };
-
-        if !success {
-            return std::io::Result::Err(std::io::Error::last_os_error());
+                &mut file_info as *mut BY_HANDLE_FILE_INFORMATION as *mut _,
+            )?;
         }
 
-        let mut result = Self {
+        let mut metadata = Self {
             number_of_links: file_info.nNumberOfLinks,
             low_precision_id: (file_info.dwVolumeSerialNumber, file_info.nFileIndexHigh, file_info.nFileIndexLow),
             high_precision_id: None,
         };
 
         let file_id_info: FILE_ID_INFO = Default::default();
-        let success = unsafe {
+        let result = unsafe {
             windows::Win32::Storage::FileSystem::GetFileInformationByHandleEx(
                 handle,
                 windows::Win32::Storage::FileSystem::FileIdInfo,
-                &mut file_id_info as *mut _,
+                &mut file_id_info as *mut FILE_ID_INFO as *mut _,
                 std::mem::size_of::<FILE_ID_INFO>() as u32,
             )
         };
-        if success {
-            result.high_precision_id = Some((file_id_info.VolumeSerialNumber, file_id_info.FileId.Identifier));
+        if result.is_ok() {
+            metadata.high_precision_id = Some((file_id_info.VolumeSerialNumber, file_id_info.FileId.Identifier));
         }
+
+        Ok(metadata)
     }
 
     pub fn is_same(&self, other: &FileMetadata) -> bool {
