@@ -23,6 +23,10 @@ pub struct InstanceContentSubpage {
     content_list: Entity<ListState<ContentListDelegate>>,
     content: Entity<Option<Arc<[InstanceContentSummary]>>>,
     sort_dropdown: Entity<SelectState<NamedDropdown<InstanceContentSortKey>>>,
+
+    needs_update_check: bool,
+    update_count: usize,
+
     _add_from_file_task: Option<Task<()>>,
 }
 
@@ -153,9 +157,12 @@ impl InstanceContentSubpage {
 
         let mut content_list_delegate = ContentListDelegate::new(instance_id, backend_handle.clone(), instance_loader, instance_version, sort_key, enabled_first);
 
-        if let Some(new_content) = content.read(cx) {
+        let (needs_update_check, update_count) = if let Some(new_content) = content.read(cx) {
             content_list_delegate.set_content(new_content);
-        }
+            calculate_update_count(instance_loader, instance_version, new_content)
+        } else {
+            (false, 0)
+        };
 
         let sort_dropdown = cx.new(|cx| {
             let items = valid_sort_modes.iter().map(|key| {
@@ -166,17 +173,26 @@ impl InstanceContentSubpage {
             SelectState::new(NamedDropdown::new(items), Some(IndexPath::new(row)), window, cx)
         });
 
-        let content_for_observe = content.clone();
         let content_list = cx.new(move |cx| {
-            cx.observe(&content_for_observe, |list: &mut ListState<ContentListDelegate>, content, cx| {
+            ListState::new(content_list_delegate, window, cx).selectable(false).searchable(true)
+        });
+
+        cx.observe(&content, |page, content, cx| {
+            if let Some(new_content) = content.read(cx) {
+                let (needs_update_check, update_count) = calculate_update_count(page.instance_loader, page.instance_version, new_content);
+                page.needs_update_check = needs_update_check;
+                page.update_count = update_count;
+            }
+
+            page.content_list.update(cx, |list, cx| {
                 if let Some(new_content) = content.read(cx) {
                     list.delegate_mut().set_content(new_content);
                 }
                 cx.notify();
-            }).detach();
+            });
 
-            ListState::new(content_list_delegate, window, cx).selectable(false).searchable(true)
-        });
+            cx.notify();
+        }).detach();
 
         cx.subscribe(&sort_dropdown, |this, _, event: &SelectEvent<NamedDropdown<InstanceContentSortKey>>, cx| {
             let SelectEvent::Confirm(Some(sort_key)) = event else {
@@ -216,6 +232,8 @@ impl InstanceContentSubpage {
             content_list,
             content,
             sort_dropdown,
+            needs_update_check,
+            update_count,
             _add_from_file_task: None,
         }
     }
@@ -241,6 +259,25 @@ impl InstanceContentSubpage {
     }
 }
 
+fn calculate_update_count(loader: Loader, version: Ustr, content: &Arc<[InstanceContentSummary]>) -> (bool, usize) {
+    let mut update_count = 0;
+
+    for content in content.iter() {
+        let status = content.update.status_if_matches(loader, version.as_str());
+        match status {
+            bridge::instance::ContentUpdateStatus::Unknown => {
+                return (true, 0);
+            },
+            bridge::instance::ContentUpdateStatus::Modrinth | bridge::instance::ContentUpdateStatus::Curseforge => {
+                update_count += 1;
+            },
+            _ => {},
+        }
+    }
+
+    (false, update_count)
+}
+
 impl Render for InstanceContentSubpage {
     fn render(&mut self, _window: &mut gpui::Window, cx: &mut gpui::Context<Self>) -> impl gpui::IntoElement {
         let (source, sort_enabled_first) = {
@@ -256,7 +293,7 @@ impl Render for InstanceContentSubpage {
             .mb_1()
             .ml_1()
             .child(div().text_lg().child(self.content_type.title()))
-            .child(Button::new("update").label(t::instance::content::update::check::label(false)).success().compact().small().on_click({
+            .child(Button::new("update_check").label(t::instance::content::update::check::label(false)).success().compact().small().on_click({
                 let backend_handle = self.backend_handle.clone();
                 let instance_id = self.instance;
                 move |_, window, cx| {
@@ -293,7 +330,29 @@ impl Render for InstanceContentSubpage {
                             .on_click(window.listener_for(&self_entity, InstanceContentSubpage::add_from_file));
 
                     this.item(mr).item(cf).item(file)
-                }));
+                }))
+            .when(!self.needs_update_check && self.update_count > 0, |this| {
+                this.child(Button::new("update_all")
+                    .label(match self.content_type {
+                        ContentType::Mods => t::instance::content::update_all_mods(self.update_count),
+                        ContentType::ResourcePacks => t::instance::content::update_all_resourcepacks(self.update_count),
+                        ContentType::Shaders => t::instance::content::update_all_shaders(self.update_count),
+                    })
+                    .success()
+                    .compact()
+                    .small()
+                    .on_click({
+                        cx.listener(move |page, _, window, cx| {
+                            if let Some(content) = page.content.read(cx).clone() {
+                                for summary in content.iter() {
+                                    if summary.update.can_update(page.instance_loader, page.instance_version.as_str()) {
+                                        crate::root::update_single_mod(page.instance, summary.id, &page.backend_handle, window, cx);
+                                    }
+                                }
+                            }
+                        })
+                    }))
+            });
 
         let filter_bar_controls = h_flex()
             .cursor_default()

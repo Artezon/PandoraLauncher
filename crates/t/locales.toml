@@ -2767,6 +2767,12 @@ hu = "Frissítés"
 sv = "Uppdatera"
 ru = "Обновить"
 fr = "Mise à jour"
+[instance.content.update_all_mods]
+en = "Update all mods (${count: usize})"
+[instance.content.update_all_resourcepacks]
+en = "Update all resourcepacks (${count: usize})"
+[instance.content.update_all_shaders]
+en = "Update all shaders (${count: usize})"
 [instance.content.update.check.label]
 en = "Check for updates"
 pl = "Sprawdź aktualizacje"
