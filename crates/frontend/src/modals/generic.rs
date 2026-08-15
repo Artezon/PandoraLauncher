@@ -327,7 +327,9 @@ impl Element for ModalRoot {
             let mut any = dialog.into_any_element();
 
             let size = any.layout_as_root(Size::new(AvailableSpace::MinContent, AvailableSpace::MinContent), window, cx);
-            window.resize(size);
+            if size != window.viewport_size() {
+                window.resize(size);
+            }
 
             any.prepaint_at(Point::default(), window, cx);
             any
