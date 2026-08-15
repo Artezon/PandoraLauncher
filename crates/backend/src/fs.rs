@@ -445,7 +445,7 @@ impl FileMetadata {
         let file = std::fs::OpenOptions::new().open(path)?;
         let handle = windows::Win32::Foundation::HANDLE(file.as_raw_handle());
 
-        let file_info: BY_HANDLE_FILE_INFORMATION = Default::default();
+        let mut file_info: BY_HANDLE_FILE_INFORMATION = Default::default();
 
         unsafe {
             windows::Win32::Storage::FileSystem::GetFileInformationByHandle(
@@ -460,7 +460,7 @@ impl FileMetadata {
             high_precision_id: None,
         };
 
-        let file_id_info: FILE_ID_INFO = Default::default();
+        let mut file_id_info: FILE_ID_INFO = Default::default();
         let result = unsafe {
             windows::Win32::Storage::FileSystem::GetFileInformationByHandleEx(
                 handle,
