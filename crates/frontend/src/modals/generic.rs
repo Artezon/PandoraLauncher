@@ -1,4 +1,4 @@
-use std::sync::{Arc, atomic::AtomicBool};
+use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
 
 use bridge::modal_action::{ModalAction, ProgressTrackerFinishType};
 use gpui::{prelude::*, *};
@@ -172,7 +172,7 @@ impl ModalRoot {
             .on_mouse_down_out({
                 let should_move = self.should_move.clone();
                 move |_, _, _| {
-                    should_move.store(false, std::sync::atomic::Ordering::Relaxed);
+                    should_move.store(false, Ordering::Relaxed);
                 }
             })
             .on_mouse_down(
@@ -180,7 +180,7 @@ impl ModalRoot {
                 {
                     let should_move = self.should_move.clone();
                     move |_, _, _| {
-                        should_move.store(true, std::sync::atomic::Ordering::Relaxed);
+                        should_move.store(true, Ordering::Relaxed);
                     }
                 },
             )
@@ -189,14 +189,14 @@ impl ModalRoot {
                 {
                     let should_move = self.should_move.clone();
                     move |_, _, _| {
-                        should_move.store(false, std::sync::atomic::Ordering::Relaxed);
+                        should_move.store(false, Ordering::Relaxed);
                     }
                 },
             )
             .on_mouse_move({
                 let should_move = self.should_move.clone();
                 move |_, window, _| {
-                    if should_move.swap(false, std::sync::atomic::Ordering::Relaxed) {
+                    if should_move.swap(false, Ordering::Relaxed) {
                         window.start_window_move();
                     }
                 }
