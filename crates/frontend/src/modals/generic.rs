@@ -76,6 +76,7 @@ pub fn show_notification_with_note(
 
 #[derive(Clone)]
 struct ModalRoot {
+    focus: FocusHandle,
     should_move: Arc<AtomicBool>,
     modal_action: ModalAction,
     title: SharedString,
@@ -83,16 +84,26 @@ struct ModalRoot {
     _notify_task: Arc<Task<()>>,
 }
 
+impl Focusable for ModalRoot {
+    fn focus_handle(&self, _cx: &App) -> FocusHandle {
+        self.focus.clone()
+    }
+}
+
 impl ModalRoot {
     fn render_modal(&self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let theme = cx.theme();
 
-        let (content, footer, opacity) = if let Some(error) = self.modal_action.get_error_message() {
+        let (content, footer, confirm_to_dismiss, opacity) = if let Some(error) = self.modal_action.get_error_message() {
             let error_widget = ErrorAlert::new(self.error_title.clone(), error.clone().into());
+            let dismiss = Button::new("ok")
+                .label(t::common::ok())
+                .on_click(|_, window, _| window.remove_window());
 
             (
                 error_widget.into_any_element(),
-                Button::new("ok").label(t::common::ok()).on_click(|_, window, _| window.remove_window()).into_any_element(),
+                dismiss.into_any_element(),
+                true,
                 1.0
             )
         } else {
@@ -144,18 +155,20 @@ impl ModalRoot {
                 let dismiss = Button::new("ok")
                     .with_variant(ButtonVariant::Secondary)
                     .label(t::common::ok())
+                    .on_action(move |&crate::Confirm, window, _| window.remove_window())
                     .on_click(|_, window, _| window.remove_window());
-                (progress.into_any_element(), dismiss.into_any_element(), modal_opacity)
+                (progress.into_any_element(), dismiss.into_any_element(), true, modal_opacity)
             } else {
                 let cancel = self.modal_action.request_cancel.clone();
                 let cancel = Button::new("cancel")
                     .disabled(self.modal_action.has_requested_cancel())
                     .label(t::common::cancel())
                     .on_click(move |_, _, _| cancel.cancel());
-                (progress.into_any_element(), cancel.into_any_element(), modal_opacity)
+                (progress.into_any_element(), cancel.into_any_element(), false, modal_opacity)
             }
         };
 
+        let cancel = self.modal_action.request_cancel.clone();
         v_flex()
             .id("root")
             .role(accesskit::Role::Dialog)
@@ -168,6 +181,12 @@ impl ModalRoot {
             .min_h_24()
             .p_4()
             .gap_3()
+            .track_focus(&self.focus)
+            .on_action(move |&crate::Confirm, window, _| if confirm_to_dismiss {
+                window.remove_window();
+            } else {
+                cancel.cancel();
+            })
             .window_control_area(WindowControlArea::Drag)
             .on_mouse_down_out({
                 let should_move = self.should_move.clone();
@@ -390,7 +409,12 @@ pub fn show_modal(
             }
         });
 
+        let button_focus = cx.focus_handle();
+        window.activate_window();
+        button_focus.focus(window, cx);
+
         cx.new(|_| ModalRoot {
+            focus: button_focus,
             should_move: Arc::new(AtomicBool::new(false)),
             modal_action,
             title,
