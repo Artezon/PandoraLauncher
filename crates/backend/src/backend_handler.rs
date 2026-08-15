@@ -1955,6 +1955,14 @@ impl BackendState {
             return;
         };
 
+        if modal_action.has_requested_cancel() {
+            modal_action.set_finished();
+        }
+        if modal_action.get_finished_at().is_some() {
+            return;
+        }
+        modal_action.clear_trackers();
+
         tokio::select! {
             _ = self.prelaunch(id, &modal_action) => {},
             _ = modal_action.request_cancel.cancelled() => {
@@ -1966,6 +1974,7 @@ impl BackendState {
         if modal_action.get_finished_at().is_some() {
             return;
         }
+        modal_action.clear_trackers();
 
         let launch_tracker = modal_action.push_tracker("Launching".into());
         let result = self.launcher.launch(&self.redirecting_http_client, dot_minecraft, configuration, quick_play, login_info, live_game_output.is_some(), &launch_tracker, &modal_action).await;
