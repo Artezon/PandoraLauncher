@@ -13,7 +13,7 @@ use ustr::Ustr;
 use uuid::Uuid;
 
 use crate::{
-    BackendState, CachedMinecraftProfile, FolderChanges, LoginError, account::BackendAccount, arcfactory::ArcStrFactory, instance::Instance, launch::{ArgumentExpansionKey, LaunchError}, log_reader, metadata::{items::{AssetsIndexMetadataItem, CurseforgeGetModFilesMetadataItem, CurseforgeSearchMetadataItem, FabricLoaderManifestMetadataItem, ForgeInstallerMavenMetadataItem, MinecraftVersionManifestMetadataItem, MinecraftVersionMetadataItem, ModrinthProjectMetadataItem, ModrinthProjectVersionsMetadataItem, ModrinthSearchMetadataItem, ModrinthV3VersionUpdateMetadataItem, ModrinthVersionUpdateMetadataItem, MojangJavaRuntimeComponentMetadataItem, MojangJavaRuntimesMetadataItem, NeoforgeInstallerMavenMetadataItem, VersionUpdateParameters, VersionV3LoaderFields, VersionV3UpdateParameters}, manager::MetaLoadError}, mod_metadata::{ContentUpdateAction, ContentUpdateKey}, skin_manager::SkinManager, unique_name
+    BackendState, CachedMinecraftProfile, LoginError, account::BackendAccount, arcfactory::ArcStrFactory, fs::FolderChanges, instance::Instance, launch::{ArgumentExpansionKey, LaunchError}, log_reader, metadata::{items::{AssetsIndexMetadataItem, CurseforgeGetModFilesMetadataItem, CurseforgeSearchMetadataItem, FabricLoaderManifestMetadataItem, ForgeInstallerMavenMetadataItem, MinecraftVersionManifestMetadataItem, MinecraftVersionMetadataItem, ModrinthProjectMetadataItem, ModrinthProjectVersionsMetadataItem, ModrinthSearchMetadataItem, ModrinthV3VersionUpdateMetadataItem, ModrinthVersionUpdateMetadataItem, MojangJavaRuntimeComponentMetadataItem, MojangJavaRuntimesMetadataItem, NeoforgeInstallerMavenMetadataItem, VersionUpdateParameters, VersionV3LoaderFields, VersionV3UpdateParameters}, manager::MetaLoadError}, mod_metadata::{ContentUpdateAction, ContentUpdateKey}, skin_manager::SkinManager
 };
 
 impl BackendState {
@@ -212,7 +212,7 @@ impl BackendState {
                         if let Ok(format) = image::guess_format(&*image_bytes) {
                             if format == image::ImageFormat::Png {
                                 let icon_path = root_path.join("icon.png");
-                                if let Err(err) = crate::write_safe(&icon_path, &*image_bytes) {
+                                if let Err(err) = crate::fs::write_safe(&icon_path, &*image_bytes) {
                                     log::error!("Unable to save instance icon: {:?}", err);
                                     self.send.send_error("Unable to save instance icon");
                                     return;
@@ -353,7 +353,7 @@ impl BackendState {
                 if let Some(instance) = instance_state.instances.get_mut(id)
                     && let Some((instance_mod, folder)) = instance.try_get_content(mod_id)
                 {
-                    let Some(aux_path) = crate::pandora_aux_path_for_content(instance_mod) else {
+                    let Some(aux_path) = crate::fs::pandora_aux_path_for_content(instance_mod) else {
                         return;
                     };
 
@@ -362,7 +362,7 @@ impl BackendState {
                         return;
                     }
 
-                    let mut aux: AuxiliaryContentMeta = crate::read_json(&aux_path).unwrap_or_default();
+                    let mut aux: AuxiliaryContentMeta = crate::fs::read_json(&aux_path).unwrap_or_default();
 
                     let mut changed = false;
 
@@ -413,7 +413,7 @@ impl BackendState {
                                 return;
                             },
                         };
-                        if let Err(err) = crate::write_safe(&aux_path, &bytes) {
+                        if let Err(err) = crate::fs::write_safe(&aux_path, &bytes) {
                             log::error!("Unable to save aux meta: {err:?}");
                             self.send.send_error("Unable to save aux meta");
                         }
@@ -533,7 +533,7 @@ impl BackendState {
 
                     _ = std::fs::remove_file(&instance_mod.path);
 
-                    if let Some(aux_path) = crate::pandora_aux_path_for_content(&instance_mod) {
+                    if let Some(aux_path) = crate::fs::pandora_aux_path_for_content(&instance_mod) {
                         _ = std::fs::remove_file(aux_path);
                     }
                 }
@@ -1462,7 +1462,7 @@ impl BackendState {
 
                 let mut is_normal_instance_folder = false;
 
-                if let Ok(path) = path.strip_prefix(&self.directories.instances_dir) && crate::is_single_component_path(path) {
+                if let Ok(path) = path.strip_prefix(&self.directories.instances_dir) && crate::fs::is_single_component_path(path) {
                     is_normal_instance_folder = true;
 
                     let instance_root = if let Some(instance) = self.instance_state.read().instances.get(id) {
@@ -1490,7 +1490,7 @@ impl BackendState {
 
                     #[cfg(windows)]
                     if let Ok(target) = junction::get_target(&instance.root_path) {
-                        if let Err(err) = crate::rename_with_fallback_across_devices(&target, &path) {
+                        if let Err(err) = crate::fs::rename_with_fallback_across_devices(&target, &path) {
                             log::error!("Unable to move instance files from {target:?} to {path:?}: {err:?}");
                             self.send.send_error(format!("Unable to move instance files: {err}"));
                             return;
@@ -1508,7 +1508,7 @@ impl BackendState {
                     };
 
                     if let Ok(target) = std::fs::read_link(&instance.root_path) {
-                        if let Err(err) = crate::rename_with_fallback_across_devices(&target, &path) {
+                        if let Err(err) = crate::fs::rename_with_fallback_across_devices(&target, &path) {
                             log::error!("Unable to move instance files from {target:?} to {path:?}: {err:?}");
                             self.send.send_error(format!("Unable to move instance files: {err}"));
                             return;
@@ -1536,7 +1536,7 @@ impl BackendState {
                         return;
                     }
 
-                    if let Err(err) = crate::rename_with_fallback_across_devices(&instance.root_path, &path) {
+                    if let Err(err) = crate::fs::rename_with_fallback_across_devices(&instance.root_path, &path) {
                         log::error!("Unable to move instance files: {err:?}");
                         self.send.send_error(format!("Unable to move instance files: {err}"));
                         return;
@@ -1783,10 +1783,10 @@ impl BackendState {
                 }
 
                 let filename = sanitize_filename::sanitize_with_options(filename, sanitize_filename::Options { windows: true, ..Default::default() });
-                let filename = unique_name(&self.directories.skin_library_dir, &filename, false);
+                let filename = crate::fs::unique_name(&self.directories.skin_library_dir, &filename, false);
                 let path = self.directories.skin_library_dir.join(&*filename);
 
-                if let Err(err) = crate::write_safe(&path, &bytes) {
+                if let Err(err) = crate::fs::write_safe(&path, &bytes) {
                     log::error!("Error while saving skin: {:?}", err);
                     self.send.send_error("Error while saving skin, see logs for more details");
                 }
@@ -1918,10 +1918,10 @@ impl BackendState {
                 }
 
                 let filename = sanitize_filename::sanitize_with_options(filename, sanitize_filename::Options { windows: true, ..Default::default() });
-                let filename = unique_name(&self.directories.skin_library_dir, &filename, false);
+                let filename = crate::fs::unique_name(&self.directories.skin_library_dir, &filename, false);
                 let path = self.directories.skin_library_dir.join(&*filename);
 
-                if let Err(err) = crate::write_safe(&path, &bytes) {
+                if let Err(err) = crate::fs::write_safe(&path, &bytes) {
                     log::error!("CopyPlayerSkin: failed to save skin: {:?}", err);
                     self.send.send_error("Error while saving skin, see logs for more details");
                 }
