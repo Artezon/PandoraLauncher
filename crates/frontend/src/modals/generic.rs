@@ -325,11 +325,7 @@ pub fn show_modal(
             origin: (window.viewport_size() - min_size).center(),
             size: min_size
         })),
-        titlebar: Some(TitlebarOptions {
-            title: Some(title.clone()),
-            appears_transparent: true,
-            traffic_light_position: None
-        }),
+        titlebar: None,
         focus: true,
         show: true,
         kind: WindowKind::Floating,
