@@ -409,12 +409,24 @@ pub fn show_modal(
             }
         });
 
-        let button_focus = cx.focus_handle();
+
+        let focus = cx.focus_handle();
+
         window.activate_window();
-        button_focus.focus(window, cx);
+        focus.focus(window, cx);
+
+        // Quickly dismiss window when focus is lost after finishing
+        window.on_focus_out(&focus, cx, {
+            let modal_action = modal_action.clone();
+            move |_, window, _| {
+                if modal_action.get_finished_at().is_some() && modal_action.get_error_message().is_none() {
+                    window.remove_window();
+                }
+            }
+        }).detach();
 
         cx.new(|_| ModalRoot {
-            focus: button_focus,
+            focus,
             should_move: Arc::new(AtomicBool::new(false)),
             modal_action,
             title,
