@@ -883,7 +883,7 @@ ru = "${name: &str} (бета)"
 fr = "${name: &str} (Beta)"
 [modrinth.versions.range]
 en = "${first: &str} - ${last: &str} (${count: usize} versions)"
-ru = "${first: &str} - ${last: &str} (${count: usize} версий)"
+ru = "${first: &str} - ${last: &str} (всего версий: ${count: usize})"
 
 [curseforge.name]
 en = "Curseforge"
