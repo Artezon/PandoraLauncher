@@ -943,6 +943,34 @@ impl BackendState {
                 modal_action.set_finished();
                 self.send.send(MessageToFrontend::Refresh);
             },
+            MessageToBackend::UnzipModpack { id, content_id, modal_action } => {
+                let (summary, loader, minecraft_version, dot_minecraft_dir, mods_dir) = if let Some(instance) = self.instance_state.write().instances.get_mut(id) {
+                    let Some((summary, _)) = instance.try_get_content(content_id) else {
+                        return;
+                    };
+                    let summary = summary.clone();
+
+                    let cfg = instance.configuration.get();
+                    (summary, cfg.loader, cfg.minecraft_version, instance.dot_minecraft_path.clone(), instance.content_state[ContentFolder::Mods].path.clone())
+                } else {
+                    return;
+                };
+
+                let modpack_path = summary.path.clone();
+
+                let mod_copies = self.apply_modpack_and_collect_mods(loader, minecraft_version,
+                    &[summary], &dot_minecraft_dir, &mods_dir, &modal_action).await;
+
+                let copy_tracker = modal_action.push_tracker("Copying mod files".into());
+                self.apply_copies_to_mods_dir(mod_copies, &mods_dir, &copy_tracker);
+                copy_tracker.set_finished(ProgressTrackerFinishType::Normal);
+
+                if let Err(err) = std::fs::remove_file(modpack_path) {
+                    self.send.send_error(format!("Unable to delete original modpack: {err}"));
+                }
+
+                modal_action.set_finished();
+            },
             MessageToBackend::Sleep5s => {
                 tokio::time::sleep(Duration::from_secs(5)).await;
             },

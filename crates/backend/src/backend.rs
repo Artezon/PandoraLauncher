@@ -771,8 +771,6 @@ impl BackendState {
             return;
         };
 
-        let mut mod_copies = Vec::new();
-
         let mut known_files: FxHashSet<Arc<Path>> = FxHashSet::with_capacity_and_hasher(mods.len() * 2, FxBuildHasher);
         for content in mods.iter() {
             known_files.insert(content.path.clone());
@@ -807,7 +805,7 @@ impl BackendState {
             }
         }
 
-        self.prelaunch_collect_mods_and_apply_modpack(loader, minecraft_version, &mods, &dot_minecraft_dir, &mods_dir, &mut mod_copies, modal_action).await;
+        let mod_copies = self.apply_modpack_and_collect_mods(loader, minecraft_version, &mods, &dot_minecraft_dir, &mods_dir, modal_action).await;
 
         if let Some(instance) = self.instance_state.write().instances.get_mut(id) {
             instance.set_frozen_mods_folder(true);
@@ -821,7 +819,9 @@ impl BackendState {
 
         _ = std::fs::create_dir_all(&mods_dir);
 
-        self.prelaunch_create_mods_dir(mod_copies, &mods_dir, modal_action);
+        let copy_tracker = modal_action.push_tracker("Copying immutable mods directory".into());
+        self.apply_copies_to_mods_dir(mod_copies, &mods_dir, &copy_tracker);
+        copy_tracker.set_finished(ProgressTrackerFinishType::Normal);
 
         // Copy any additional files which aren't mods
         if !other_files.is_empty() {
@@ -862,7 +862,9 @@ impl BackendState {
         }
     }
 
-    async fn prelaunch_collect_mods_and_apply_modpack(self: &Arc<Self>, loader: Loader, minecraft_version: Ustr, mods: &[InstanceContentSummary], dot_minecraft_dir: &Path, mod_dir: &Path, mod_copies: &mut Vec<PrelaunchModCopy>, modal_action: &ModalAction) {
+    pub async fn apply_modpack_and_collect_mods(self: &Arc<Self>, loader: Loader, minecraft_version: Ustr, mods: &[InstanceContentSummary], dot_minecraft_dir: &Path, mod_dir: &Path, modal_action: &ModalAction) -> Vec<PrelaunchModCopy> {
+        let mut mod_copies = Vec::new();
+
         struct ModpackInstall {
             aux_path: Option<PathBuf>,
             files: Vec<ModpackFile>
@@ -1045,11 +1047,11 @@ impl BackendState {
                 tracker.set_finished(ProgressTrackerFinishType::Normal);
             }
         }
+
+        mod_copies
     }
 
-    fn prelaunch_create_mods_dir(&self, mod_copies: Vec<PrelaunchModCopy>, mods_dir: &Path, modal_action: &ModalAction) {
-        let tracker = modal_action.push_tracker("Copying immutable mods directory".into());
-
+    pub fn apply_copies_to_mods_dir(&self, mod_copies: Vec<PrelaunchModCopy>, mods_dir: &Path, tracker: &ProgressTracker) {
         tracker.set_total(mod_copies.len());
 
         let content_library_dir = &self.directories.content_library_dir.clone();
@@ -1078,8 +1080,6 @@ impl BackendState {
             }
             tracker.add_count(1);
         }
-
-        tracker.set_finished(ProgressTrackerFinishType::Normal);
     }
 
     pub async fn download_modpack_children(self: &Arc<Self>, summary: &InstanceContentSummary, loader: Loader, minecraft_version: Ustr, modal_action: &ModalAction) -> bool {
@@ -1483,7 +1483,7 @@ pub enum LoginError {
     CancelledByUser,
 }
 
-struct PrelaunchModCopy {
+pub struct PrelaunchModCopy {
     path: PathBuf,
     source: PrelaunchModCopySource
 }
