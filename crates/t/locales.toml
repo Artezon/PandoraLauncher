@@ -881,6 +881,9 @@ hu = "${name: &str} (Beta)"
 sv = "${name: &str} (Beta)"
 ru = "${name: &str} (бета)"
 fr = "${name: &str} (Beta)"
+[modrinth.versions.range]
+en = "${first: &str} - ${last: &str} (${count: usize} versions)"
+ru = "${first: &str} - ${last: &str} (${count: usize} версий)"
 
 [curseforge.name]
 en = "Curseforge"
@@ -1063,6 +1066,9 @@ hu = "OK"
 sv = "OK"
 ru = "ОК"
 fr = "OK"
+[common.cannot_be_undone]
+en = "This cannot be undone"
+ru = "Это действие нельзя отменить"
 [common.nav.top]
 en = "Go to Top"
 pl = "Przejdź na górę"
@@ -2881,6 +2887,21 @@ hu = "Telepítés egyedileg - nem lehet autómatikusan frissíteni"
 sv = "Installera manuellt - kan inte automatiskt uppdatera"
 ru = "Установлено вручную - автоматическое обновление невозможно"
 fr = "Installé manuellement - ne peut pas être mis à jour automatiquement"
+[instance.content.unzip.tooltip]
+en = "Unzip Modpack"
+ru = "Распаковать сборку"
+[instance.content.unzip.action]
+en = "Unzip"
+ru = "Распаковать"
+[instance.content.unzip.title]
+en = "Unzip '${name: &str}'"
+ru = "Распаковка \"${name: &str}\""
+[instance.content.unzip.warning]
+en = "Unzipping this modpack will place all the mods directly into your mods folder. The mods will be treated individually instead of being tied to the modpack"
+ru = "После распаковки все моды из этой сборки окажутся прямо в папке для модов. Они будут считаться отдельными модами, а не частью сборки"
+[instance.content.unzip.error]
+en = "Error while unzipping modpack"
+ru = "Ошибка при распаковке сборки"
 
 [instance.content.sort_key.name]
 en = "Name"
@@ -3550,6 +3571,12 @@ pl = "Wybierz konto, aby wyświetlić/edytować skiny"
 hu = "Válassz egy fiókot a kinézetek megnézéséhez/szerkesztéséhez"
 ru = "Выберите учётную запись для просмотра/изменения скинов"
 fr = "Sélectionnez un compte pour afficher/modifier les skins"
+[skins.player_model.classic]
+en = "Classic"
+ru = "Classic"
+[skins.player_model.slim]
+en = "Slim"
+ru = "Slim"
 [skins.player_model.yaw]
 en = "Yaw: ${value: i32}°"
 pl = "Yaw: ${value: i32}°"
