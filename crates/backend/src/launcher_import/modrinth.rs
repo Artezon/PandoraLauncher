@@ -159,9 +159,18 @@ pub fn read_profiles_from_modrinth_db(modrinth: &Path) -> rusqlite::Result<Optio
         }
     }
 
-    let mut stmt = conn.prepare("SELECT path FROM profiles")?;
-    let mut query = stmt.query([])?;
+    if let Ok(mut stmt) = conn.prepare("SELECT path FROM instances") {
+        if let Ok(query) = stmt.query([]) {
+            return Ok(Some(paths_from_query(profile_dir_main, profile_dir_fallback, query)?));
+        }
+    }
 
+    let mut stmt = conn.prepare("SELECT path FROM profiles")?;
+    let query = stmt.query([])?;
+    Ok(Some(paths_from_query(profile_dir_main, profile_dir_fallback, query)?))
+}
+
+fn paths_from_query(profile_dir_main: PathBuf, profile_dir_fallback: Option<PathBuf>, mut query: rusqlite::Rows<'_>) -> Result<Vec<Arc<Path>>, rusqlite::Error> {
     let mut paths = Vec::new();
 
     while let Ok(Some(row)) = query.next() {
@@ -186,5 +195,5 @@ pub fn read_profiles_from_modrinth_db(modrinth: &Path) -> rusqlite::Result<Optio
         log::warn!("Modrinth profile folder {:?} doesn't exist", profile);
     }
 
-    Ok(Some(paths))
+    Ok(paths)
 }
