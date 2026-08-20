@@ -149,11 +149,19 @@ pub enum UpdateChannel {
 }
 
 impl UpdateChannel {
-    pub fn version_types(self) -> &'static [&'static str] {
+    pub fn modrinth_version_types(self) -> &'static [&'static str] {
         match self {
             Self::Release => &["release"],
             Self::Beta => &["release", "beta"],
             Self::Alpha => &["release", "beta", "alpha"],
+        }
+    }
+
+    pub fn curseforge_version_types(self) -> &'static [u32] {
+        match self {
+            Self::Release => &[1],
+            Self::Beta => &[1, 2],
+            Self::Alpha => &[1, 2, 3],
         }
     }
 }

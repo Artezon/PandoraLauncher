@@ -647,6 +647,11 @@ impl<'a> MetadataItem for CurseforgeGetModFilesMetadataItem<'a> {
         if let Some(mod_loader_type) = self.0.mod_loader_type {
             req = req.query(&[("modLoaderType", mod_loader_type)]);
         }
+        if let Some(release_types) = &self.0.release_types {
+            for release_type in *release_types {
+                req = req.query(&[("releaseTypes", release_type)]);
+            }
+        }
         if let Some(page_size) = self.0.page_size {
             req = req.query(&[("pageSize", page_size)]);
         }

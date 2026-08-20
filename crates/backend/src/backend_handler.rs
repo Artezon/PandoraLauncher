@@ -556,7 +556,7 @@ impl BackendState {
                     return;
                 };
 
-                let version_types = update_channel.version_types();
+                let version_types = update_channel.modrinth_version_types();
 
                 let mut content = Vec::new();
                 for folder in ContentFolder::iter() {
@@ -750,6 +750,7 @@ impl BackendState {
                                         mod_id: project_id,
                                         game_version: Some(version),
                                         mod_loader_type,
+                                        release_types: Some(update_channel.curseforge_version_types()),
                                         page_size: Some(1)
                                     })).await;
 
