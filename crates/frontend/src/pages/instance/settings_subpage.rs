@@ -7,7 +7,7 @@ use gpui::{prelude::*, *};
 use gpui_component::{
     ActiveTheme as _, Disableable, Icon, IndexPath, Sizable, WindowExt, button::{Button, ButtonVariants}, checkbox::Checkbox, h_flex, input::{Input, InputEvent, InputState, NumberInput, NumberInputEvent}, notification::{Notification, NotificationType}, select::{SearchableVec, Select, SelectEvent, SelectState}, skeleton::Skeleton, v_flex
 };
-use schema::{fabric_loader_manifest::FabricLoaderManifest, forge::{ForgeMavenManifest, NeoforgeMavenManifest}, instance::{AUTO_LIBRARY_PATH_GLFW, AUTO_LIBRARY_PATH_OPENAL, InstanceJvmBinaryConfiguration, InstanceJvmFlagsConfiguration, InstanceLinuxWrapperConfiguration, InstanceMemoryConfiguration, InstanceSystemLibrariesConfiguration, InstanceWrapperCommandConfiguration, LwjglLibraryPath}, loader::Loader, version_manifest::MinecraftVersionManifest};
+use schema::{fabric_loader_manifest::FabricLoaderManifest, forge::{ForgeMavenManifest, NeoforgeMavenManifest}, instance::{AUTO_LIBRARY_PATH_GLFW, AUTO_LIBRARY_PATH_OPENAL, InstanceJvmBinaryConfiguration, InstanceJvmFlagsConfiguration, InstanceLinuxWrapperConfiguration, InstanceMemoryConfiguration, InstanceSystemLibrariesConfiguration, InstanceWrapperCommandConfiguration, LwjglLibraryPath, UpdateChannel}, loader::Loader, version_manifest::MinecraftVersionManifest};
 use strum::IntoEnumIterator;
 use uuid::Uuid;
 
@@ -37,6 +37,7 @@ pub struct InstanceSettingsSubpage {
     loader_versions_state: TypelessFrontendMetadataResult,
     loader_version_select_state: Entity<SelectState<SearchableVec<&'static str>>>,
     loader_version_latest_string: &'static str,
+    update_channel_select_state: Entity<SelectState<NamedDropdown<UpdateChannel>>>,
     disable_file_syncing: bool,
     sandbox_available: bool,
     sandbox: bool,
@@ -91,6 +92,7 @@ impl InstanceSettingsSubpage {
         let loader = entry.configuration.loader;
         let loader_version_latest_string = t::common::latest();
         let preferred_loader_version = entry.configuration.preferred_loader_version.map(|s| s.as_str()).unwrap_or(loader_version_latest_string);
+        let update_channel = entry.configuration.update_channel;
         let account = entry.configuration.preferred_account;
         let disable_file_syncing = entry.configuration.disable_file_syncing;
         let sandbox = entry.configuration.sandbox;
@@ -193,6 +195,14 @@ impl InstanceSettingsSubpage {
         });
         cx.subscribe(&loader_version_select_state, Self::on_loader_version_selected).detach();
 
+        let update_channel_items = vec![
+            NamedDropdownItem { name: t::instance::update_channel::release().into(), item: UpdateChannel::Release },
+            NamedDropdownItem { name: t::instance::update_channel::beta().into(), item: UpdateChannel::Beta },
+            NamedDropdownItem { name: t::instance::update_channel::alpha().into(), item: UpdateChannel::Alpha },
+        ];
+        let update_channel_select_state = NamedDropdown::create_and_select(update_channel_items, update_channel, window, cx);
+        cx.subscribe(&update_channel_select_state, Self::on_update_channel_selected).detach();
+
         let memory_min_input_state = cx.new(|cx| {
             InputState::new(window, cx).default_value(memory.min.to_string())
         });
@@ -226,6 +236,7 @@ impl InstanceSettingsSubpage {
             loader_select_state,
             loader_version_select_state,
             loader_version_latest_string,
+            update_channel_select_state,
             disable_file_syncing,
             sandbox_available,
             sandbox,
@@ -469,6 +480,24 @@ impl InstanceSettingsSubpage {
 			id: self.instance_id,
 			account: value.clone(),
 		});
+    }
+
+    pub fn on_update_channel_selected(
+        &mut self,
+        _state: Entity<SelectState<NamedDropdown<UpdateChannel>>>,
+        event: &SelectEvent<NamedDropdown<UpdateChannel>>,
+        _cx: &mut Context<Self>,
+    ) {
+        let SelectEvent::Confirm(value) = event;
+
+        let Some(update_channel) = value else {
+            return;
+        };
+
+        self.backend_handle.send(MessageToBackend::SetInstanceUpdateChannel {
+            id: self.instance_id,
+            update_channel: *update_channel,
+        });
     }
 
     pub fn on_loader_selected(
@@ -821,6 +850,10 @@ impl Render for InstanceSettingsSubpage {
             .child(crate::labelled(
                 t::instance::version(),
                 version_content,
+            ))
+            .child(crate::labelled(
+                t::instance::update_channel::label(),
+                Select::new(&self.update_channel_select_state).w_full()
             ))
             .child(crate::labelled(
                 t::account::override_account(),
