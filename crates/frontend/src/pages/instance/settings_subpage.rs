@@ -12,7 +12,7 @@ use strum::IntoEnumIterator;
 use uuid::Uuid;
 
 use crate::{
-	component::{horizontal_sections::HorizontalSections, named_dropdown::{NamedDropdown, NamedDropdownItem}, path_label::PathLabel},
+	component::{horizontal_sections::HorizontalSections, named_dropdown::{DropdownName, NamedDropdown, NamedDropdownItem}, path_label::PathLabel},
 	entity::{DataEntities, account::{AccountEntries, AccountExt}, instance::InstanceEntry, metadata::{AsMetadataResult, FrontendMetadata, FrontendMetadataResult, FrontendMetadataState, TypelessFrontendMetadataResult}},
 	icon::PandoraIcon, interface_config::InterfaceConfig, pages::instances_page::VersionList, png_render_cache,
 };
@@ -145,7 +145,7 @@ impl InstanceSettingsSubpage {
             let mut selected = None;
             for (index, loop_account) in accounts.iter().enumerate() {
                 account_items.push(NamedDropdownItem {
-                    name: loop_account.username(hide_usernames),
+                    name: DropdownName::new(loop_account.username(hide_usernames)),
                     item: loop_account.uuid,
                 });
                 if let Some(preferred_account) = account && loop_account.uuid == preferred_account {
@@ -196,9 +196,9 @@ impl InstanceSettingsSubpage {
         cx.subscribe(&loader_version_select_state, Self::on_loader_version_selected).detach();
 
         let update_channel_items = vec![
-            NamedDropdownItem { name: t::instance::update_channel::release().into(), item: UpdateChannel::Release },
-            NamedDropdownItem { name: t::instance::update_channel::beta().into(), item: UpdateChannel::Beta },
-            NamedDropdownItem { name: t::instance::update_channel::alpha().into(), item: UpdateChannel::Alpha },
+            NamedDropdownItem { name: DropdownName::translated(t::instance::update_channel::release), item: UpdateChannel::Release },
+            NamedDropdownItem { name: DropdownName::translated(t::instance::update_channel::beta), item: UpdateChannel::Beta },
+            NamedDropdownItem { name: DropdownName::translated(t::instance::update_channel::alpha), item: UpdateChannel::Alpha },
         ];
         let update_channel_select_state = NamedDropdown::create_and_select(update_channel_items, update_channel, window, cx);
         cx.subscribe(&update_channel_select_state, Self::on_update_channel_selected).detach();
@@ -413,7 +413,7 @@ impl InstanceSettingsSubpage {
 
         let list = accounts.read(cx).accounts
             .iter().map(|account| NamedDropdownItem {
-                name: account.username(hide_usernames),
+                name: DropdownName::new(account.username(hide_usernames)),
                 item: account.uuid,
             }).collect::<Vec<NamedDropdownItem<Uuid>>>();
 
