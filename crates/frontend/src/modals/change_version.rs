@@ -418,7 +418,7 @@ impl ChangeVersionDialog {
 
         if items.is_empty() {
             select
-                .placeholder(t::instance::content::update::check::no_compatible_versions())
+                .placeholder(t::instance::content::change_version::no_compatible_versions())
                 .disabled(true)
                 .into_any_element()
         } else {

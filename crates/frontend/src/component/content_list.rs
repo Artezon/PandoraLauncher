@@ -200,6 +200,11 @@ impl ContentListDelegate {
                 crate::modals::change_version::open(id, &summary, &data, updating.clone(), list.clone(), window, cx);
             }
         };
+        let source_name = match summary.content_source {
+            ContentSource::ModrinthProject { .. } | ContentSource::ModrinthUnknown => t::modrinth::name(),
+            ContentSource::CurseforgeProject { .. } => t::curseforge::name(),
+            _ => t::common::unknown(),
+        };
         let update_button = match status {
             bridge::instance::ContentUpdateStatus::Unknown | bridge::instance::ContentUpdateStatus::ManualInstall => {
                 if summary.content_source == ContentSource::Manual {
@@ -211,7 +216,7 @@ impl ContentListDelegate {
                     Some(
                         Button::new(("update", element_id)).icon(PandoraIcon::ArrowLeftRight)
                             .loading(is_loading)
-                            .tooltip(t::instance::content::change_version::button())
+                            .tooltip(t::instance::content::change_version::button(source_name))
                             .on_click(open_change_version.clone())
                     )
                 }
@@ -220,7 +225,7 @@ impl ContentListDelegate {
                 Some(
                     Button::new(("update", element_id)).danger().icon(PandoraIcon::TriangleAlert)
                         .loading(is_loading)
-                        .tooltip(t::instance::content::update::check::no_compatible_versions())
+                        .tooltip(t::instance::content::change_version::no_compatible_versions())
                         .on_click(open_change_version.clone())
                 )
             },
@@ -241,17 +246,37 @@ impl ContentListDelegate {
                 )
             },
             bridge::instance::ContentUpdateStatus::Modrinth | bridge::instance::ContentUpdateStatus::Curseforge => {
-                let tooltip = match status {
-                    bridge::instance::ContentUpdateStatus::Modrinth => t::instance::content::change_version::from_modrinth(),
-                    bridge::instance::ContentUpdateStatus::Curseforge => t::instance::content::change_version::from_curseforge(),
-                    _ => unreachable!()
-                };
-
+                let updating = self.updating.clone();
+                let backend_handle = self.backend_handle.clone();
                 Some(
                     Button::new(("update", element_id)).success().icon(PandoraIcon::Download)
                         .loading(is_loading)
-                        .tooltip(tooltip)
-                        .on_click(open_change_version.clone())
+                        .tooltip(t::instance::content::change_version::update_available(source_name))
+                        .on_click(cx.listener(move |this, click: &ClickEvent, window, cx| {
+                            cx.stop_propagation();
+
+                            if !click.modifiers().shift {
+                                open_change_version(click, window, cx);
+                                return;
+                            }
+
+                            let mut updating = updating.lock();
+                            let delegate = this.delegate_mut();
+                            if delegate.is_selected(element_id) {
+                                for summary in &delegate.content {
+                                    if delegate.is_selected(summary.filename_hash) && summary.update.can_update(delegate.for_loader, delegate.for_version.as_str()) {
+                                        updating.insert(summary.filename_hash);
+                                        crate::root::update_single_mod(id, summary.id, &backend_handle, window, cx);
+                                    }
+                                }
+                                delegate.selected.clear();
+                                delegate.selected_range.clear();
+                                delegate.last_clicked_non_range = None;
+                            } else {
+                                updating.insert(element_id);
+                                crate::root::update_single_mod(id, content_id, &backend_handle, window, cx);
+                            }
+                        }))
                 )
             },
         };
