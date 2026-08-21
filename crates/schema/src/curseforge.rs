@@ -49,6 +49,13 @@ pub struct CurseforgeGetFilesRequest {
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct CurseforgeChangelogRequest {
+    pub mod_id: u32,
+    pub file_id: u32,
+}
+
+#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CurseforgeFingerprintRequest {
     pub fingerprints: Vec<u32>,
 }
@@ -62,6 +69,11 @@ pub struct CurseforgeSearchResult {
 #[derive(Debug, Deserialize)]
 pub struct CurseforgeGetModFilesResult {
     pub data: Arc<[CurseforgeFile]>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct CurseforgeChangelogResult {
+    pub data: Option<Arc<str>>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -150,8 +162,10 @@ pub struct CurseforgeFile {
     pub id: u32,
     pub mod_id: u32,
     pub file_name: Arc<str>,
+    pub file_date: Option<Arc<str>>,
     pub release_type: u32,
     pub file_length: u64,
+    pub game_versions: Option<Arc<[Ustr]>>,
     pub hashes: Arc<[CurseforgeFileHash]>,
     pub download_url: Option<Arc<str>>,
     pub dependencies: Arc<[CurseforgeFileDependency]>,

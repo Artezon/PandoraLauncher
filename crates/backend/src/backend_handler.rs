@@ -5,7 +5,7 @@ use bridge::{
     install::{ContentDownload, ContentInstall, ContentInstallFile, ContentInstallPath, InstallTarget}, instance::{ContentFolder, ContentSummary, ContentType, InstanceID}, keep_alive::KeepAlive, message::{AccountCapesResult, AccountSkinResult, BackendConfigWithPassword, EmbeddedOrRaw, GameOutputMsg, LogFiles, MessageToBackend, MessageToFrontend, QuickPlayLaunch}, meta::MetadataResult, modal_action::{ModalAction, ModalActionVisitUrl, ProgressTrackerFinishType}, serial::AtomicOptionSerial
 };
 use futures::TryFutureExt;
-use schema::{auxiliary::AuxiliaryContentMeta, content::{ContentInstallReason, ContentSource}, curseforge::{CurseforgeGetModFilesRequest, CurseforgeModLoaderType}, loader::Loader, minecraft_profile::{MinecraftProfileResponse, SkinVariant}, modrinth::ModrinthLoader, version::{LaunchArgument, LaunchArgumentValue}};
+use schema::{auxiliary::AuxiliaryContentMeta, content::{ContentInstallReason, ContentSource}, curseforge::CurseforgeGetModFilesRequest, loader::Loader, minecraft_profile::{MinecraftProfileResponse, SkinVariant}, modrinth::ModrinthLoader, version::{LaunchArgument, LaunchArgumentValue}};
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 use tokio::{io::AsyncBufReadExt, sync::{Semaphore, TryAcquireError}};
@@ -13,7 +13,7 @@ use ustr::Ustr;
 use uuid::Uuid;
 
 use crate::{
-    BackendState, CachedMinecraftProfile, LoginError, account::BackendAccount, arcfactory::ArcStrFactory, fs::FolderChanges, instance::Instance, launch::{ArgumentExpansionKey, LaunchError}, log_reader, metadata::{items::{AssetsIndexMetadataItem, CurseforgeGetModFilesMetadataItem, CurseforgeSearchMetadataItem, FabricLoaderManifestMetadataItem, ForgeInstallerMavenMetadataItem, MinecraftVersionManifestMetadataItem, MinecraftVersionMetadataItem, ModrinthProjectMetadataItem, ModrinthProjectVersionsMetadataItem, ModrinthSearchMetadataItem, ModrinthV3VersionUpdateMetadataItem, ModrinthVersionUpdateMetadataItem, MojangJavaRuntimeComponentMetadataItem, MojangJavaRuntimesMetadataItem, NeoforgeInstallerMavenMetadataItem, VersionUpdateParameters, VersionV3LoaderFields, VersionV3UpdateParameters}, manager::MetaLoadError}, mod_metadata::{ContentUpdateAction, ContentUpdateKey}, skin_manager::SkinManager
+    BackendState, CachedMinecraftProfile, LoginError, account::BackendAccount, arcfactory::ArcStrFactory, fs::FolderChanges, instance::Instance, launch::{ArgumentExpansionKey, LaunchError}, log_reader, metadata::{items::{AssetsIndexMetadataItem, CurseforgeChangelogMetadataItem, CurseforgeGetModFilesMetadataItem, CurseforgeSearchMetadataItem, FabricLoaderManifestMetadataItem, ForgeInstallerMavenMetadataItem, MinecraftVersionManifestMetadataItem, MinecraftVersionMetadataItem, ModrinthChangelogMetadataItem, ModrinthProjectMetadataItem, ModrinthProjectVersionsMetadataItem, ModrinthSearchMetadataItem, ModrinthV3VersionUpdateMetadataItem, ModrinthVersionsFromHashesMetadataItem, ModrinthVersionUpdateMetadataItem, MojangJavaRuntimeComponentMetadataItem, MojangJavaRuntimesMetadataItem, NeoforgeInstallerMavenMetadataItem, VersionUpdateParameters, VersionV3LoaderFields, VersionV3UpdateParameters}, manager::MetaLoadError}, mod_metadata::{ContentUpdateAction, ContentUpdateKey}, skin_manager::SkinManager
 };
 
 impl BackendState {
@@ -52,6 +52,14 @@ impl BackendState {
                             let (result, handle) = meta.fetch_with_keepalive(&ModrinthProjectMetadataItem(project), force_reload).await;
                             (result.map(MetadataResult::ModrinthProjectResult), handle)
                         },
+                        bridge::meta::MetadataRequest::ModrinthChangelog(ref request) => {
+                            let (result, handle) = meta.fetch_with_keepalive(&ModrinthChangelogMetadataItem(request), force_reload).await;
+                            (result.map(MetadataResult::ModrinthChangelogResult), handle)
+                        },
+                        bridge::meta::MetadataRequest::ModrinthVersionsFromHashes(ref request) => {
+                            let (result, handle) = meta.fetch_with_keepalive(&ModrinthVersionsFromHashesMetadataItem(request), force_reload).await;
+                            (result.map(MetadataResult::ModrinthVersionsFromHashesResponse), handle)
+                        },
                         bridge::meta::MetadataRequest::CurseforgeSearch(ref search) => {
                             let (result, handle) = meta.fetch_with_keepalive(&CurseforgeSearchMetadataItem(search), force_reload).await;
                             (result.map(MetadataResult::CurseforgeSearchResult), handle)
@@ -59,6 +67,10 @@ impl BackendState {
                         bridge::meta::MetadataRequest::CurseforgeGetModFiles(ref request) => {
                             let (result, handle) = meta.fetch_with_keepalive(&CurseforgeGetModFilesMetadataItem(request), force_reload).await;
                             (result.map(MetadataResult::CurseforgeGetModFilesResult), handle)
+                        },
+                        bridge::meta::MetadataRequest::CurseforgeChangelog(ref request) => {
+                            let (result, handle) = meta.fetch_with_keepalive(&CurseforgeChangelogMetadataItem(request), force_reload).await;
+                            (result.map(MetadataResult::CurseforgeChangelogResult), handle)
                         },
                     };
                     let result = result.map_err(|err| format!("{}", err).into());
@@ -142,6 +154,9 @@ impl BackendState {
                         configuration.update_channel = update_channel;
                     });
                 }
+            },
+            MessageToBackend::SetContentSource { hash, source } => {
+                self.mod_metadata_manager.set_content_sources(std::iter::once((hash, source)));
             },
             MessageToBackend::SetInstanceDisableFileSyncing { id, disable_file_syncing } => {
                 if let Some(instance) = self.instance_state.write().instances.get_mut(id) {
@@ -578,42 +593,6 @@ impl BackendState {
 
                 let semaphore = Semaphore::new(8);
 
-                let mod_params = &VersionUpdateParameters {
-                    loaders: [modrinth_loader].into(),
-                    game_versions: [version].into(),
-                    version_types,
-                };
-
-                let fabric_mod_params = &VersionUpdateParameters {
-                    loaders: [ModrinthLoader::Fabric].into(),
-                    game_versions: [version].into(),
-                    version_types,
-                };
-
-                let forge_mod_params = &VersionUpdateParameters {
-                    loaders: [ModrinthLoader::Forge].into(),
-                    game_versions: [version].into(),
-                    version_types,
-                };
-
-                let neoforge_mod_params = &VersionUpdateParameters {
-                    loaders: [ModrinthLoader::NeoForge].into(),
-                    game_versions: [version].into(),
-                    version_types,
-                };
-
-                let resourcepack_params = &VersionUpdateParameters {
-                    loaders: [ModrinthLoader::Minecraft].into(),
-                    game_versions: [version].into(),
-                    version_types,
-                };
-
-                let shaderpack_params = &VersionUpdateParameters {
-                    loaders: [ModrinthLoader::Iris, ModrinthLoader::Optifine, ModrinthLoader::Canvas].into(),
-                    game_versions: [version].into(),
-                    version_types,
-                };
-
                 let modrinth_modpack_params = &VersionV3UpdateParameters {
                     loaders: ["mrpack".into()].into(),
                     loader_fields: VersionV3LoaderFields {
@@ -647,47 +626,22 @@ impl BackendState {
                                 },
                                 ContentSource::ModrinthUnknown | ContentSource::ModrinthProject { .. } => {
                                     let permit = semaphore.acquire().await.unwrap();
-                                    let result = match summary.content_summary.extra {
-                                        ContentType::Fabric => {
-                                            meta.fetch(&ModrinthVersionUpdateMetadataItem {
-                                                sha1: hex::encode(summary.content_summary.hash).into(),
-                                                params: fabric_mod_params.clone()
-                                            }).await
-                                        },
-                                        ContentType::Forge | ContentType::LegacyForge => {
-                                            meta.fetch(&ModrinthVersionUpdateMetadataItem {
-                                                sha1: hex::encode(summary.content_summary.hash).into(),
-                                                params: forge_mod_params.clone()
-                                            }).await
-                                        },
-                                        ContentType::NeoForge => {
-                                            meta.fetch(&ModrinthVersionUpdateMetadataItem {
-                                                sha1: hex::encode(summary.content_summary.hash).into(),
-                                                params: neoforge_mod_params.clone()
-                                            }).await
-                                        },
-                                        ContentType::JavaModule | ContentType::CurseforgeModpack { .. } | ContentType::Unknown => {
-                                            meta.fetch(&ModrinthVersionUpdateMetadataItem {
-                                                sha1: hex::encode(summary.content_summary.hash).into(),
-                                                params: mod_params.clone()
-                                            }).await
-                                        },
+                                    let result = match &summary.content_summary.extra {
                                         ContentType::ModrinthModpack { .. } => {
                                             meta.fetch(&ModrinthV3VersionUpdateMetadataItem {
                                                 sha1: hex::encode(summary.content_summary.hash).into(),
                                                 params: modrinth_modpack_params.clone()
                                             }).await
                                         },
-                                        ContentType::ResourcePack => {
+                                        extra => {
+                                            let loaders = extra.modrinth_loaders().unwrap_or_else(|| vec![modrinth_loader].into());
                                             meta.fetch(&ModrinthVersionUpdateMetadataItem {
                                                 sha1: hex::encode(summary.content_summary.hash).into(),
-                                                params: resourcepack_params.clone()
-                                            }).await
-                                        },
-                                        ContentType::ShaderPack => {
-                                            meta.fetch(&ModrinthVersionUpdateMetadataItem {
-                                                sha1: hex::encode(summary.content_summary.hash).into(),
-                                                params: shaderpack_params.clone()
+                                                params: VersionUpdateParameters {
+                                                    loaders,
+                                                    game_versions: [version].into(),
+                                                    version_types,
+                                                }
                                             }).await
                                         },
                                     };
@@ -733,18 +687,7 @@ impl BackendState {
                                 ContentSource::CurseforgeProject { project_id } => {
                                     let permit = semaphore.acquire().await.unwrap();
 
-                                    let mod_loader_type = match summary.content_summary.extra {
-                                        ContentType::Fabric => {
-                                            Some(CurseforgeModLoaderType::Fabric as u32)
-                                        },
-                                        ContentType::Forge | ContentType::LegacyForge => {
-                                            Some(CurseforgeModLoaderType::Forge as u32)
-                                        },
-                                        ContentType::NeoForge => {
-                                            Some(CurseforgeModLoaderType::NeoForge as u32)
-                                        },
-                                        _ => None
-                                    };
+                                    let mod_loader_type = summary.content_summary.extra.curseforge_loader().map(|loader| loader as u32);
 
                                     let result = self.meta.fetch(&CurseforgeGetModFilesMetadataItem(&CurseforgeGetModFilesRequest {
                                         mod_id: project_id,

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use schema::{curseforge::{CurseforgeGetModFilesRequest, CurseforgeGetModFilesResult, CurseforgeSearchRequest, CurseforgeSearchResult}, fabric_loader_manifest::FabricLoaderManifest, forge::{ForgeMavenManifest, NeoforgeMavenManifest}, modrinth::{ModrinthProjectRequest, ModrinthProjectResult, ModrinthProjectVersionsRequest, ModrinthProjectVersionsResult, ModrinthSearchRequest, ModrinthSearchResult}, version_manifest::MinecraftVersionManifest};
+use schema::{curseforge::{CurseforgeChangelogRequest, CurseforgeChangelogResult, CurseforgeGetModFilesRequest, CurseforgeGetModFilesResult, CurseforgeSearchRequest, CurseforgeSearchResult}, fabric_loader_manifest::FabricLoaderManifest, forge::{ForgeMavenManifest, NeoforgeMavenManifest}, modrinth::{ModrinthChangelogRequest, ModrinthChangelogResult, ModrinthProjectRequest, ModrinthProjectResult, ModrinthProjectVersionsRequest, ModrinthProjectVersionsResult, ModrinthSearchRequest, ModrinthSearchResult, ModrinthVersionsFromHashesRequest, ModrinthVersionsFromHashesResponse}, version_manifest::MinecraftVersionManifest};
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum MetadataRequest {
@@ -11,8 +11,11 @@ pub enum MetadataRequest {
     ModrinthSearch(ModrinthSearchRequest),
     ModrinthProjectVersions(ModrinthProjectVersionsRequest),
     ModrinthProject(ModrinthProjectRequest),
+    ModrinthChangelog(ModrinthChangelogRequest),
+    ModrinthVersionsFromHashes(ModrinthVersionsFromHashesRequest),
     CurseforgeSearch(CurseforgeSearchRequest),
     CurseforgeGetModFiles(CurseforgeGetModFilesRequest),
+    CurseforgeChangelog(CurseforgeChangelogRequest),
 }
 
 #[derive(Debug)]
@@ -24,6 +27,9 @@ pub enum MetadataResult {
     ModrinthSearchResult(Arc<ModrinthSearchResult>),
     ModrinthProjectVersionsResult(Arc<ModrinthProjectVersionsResult>),
     ModrinthProjectResult(Arc<ModrinthProjectResult>),
+    ModrinthChangelogResult(Arc<ModrinthChangelogResult>),
+    ModrinthVersionsFromHashesResponse(Arc<ModrinthVersionsFromHashesResponse>),
     CurseforgeSearchResult(Arc<CurseforgeSearchResult>),
     CurseforgeGetModFilesResult(Arc<CurseforgeGetModFilesResult>),
+    CurseforgeChangelogResult(Arc<CurseforgeChangelogResult>),
 }

@@ -6,7 +6,7 @@ use reqwest::RequestBuilder;
 use schema::{
     assets_index::AssetsIndex,
     curseforge::{
-        CURSEFORGE_API_KEY, CURSEFORGE_SEARCH_URL, CurseforgeFingerprintRequest, CurseforgeFingerprintResponse, CurseforgeGetFilesRequest, CurseforgeGetModFilesRequest, CurseforgeGetModFilesResult, CurseforgeSearchRequest, CurseforgeSearchResult, MINECRAFT_GAME_ID
+        CURSEFORGE_API_KEY, CURSEFORGE_SEARCH_URL, CurseforgeChangelogRequest, CurseforgeChangelogResult, CurseforgeFingerprintRequest, CurseforgeFingerprintResponse, CurseforgeGetFilesRequest, CurseforgeGetModFilesRequest, CurseforgeGetModFilesResult, CurseforgeSearchRequest, CurseforgeSearchResult, MINECRAFT_GAME_ID
     },
     fabric_launch::FabricLaunch,
     fabric_loader_manifest::{FABRIC_LOADER_MANIFEST_URL, FabricLoaderManifest},
@@ -15,11 +15,12 @@ use schema::{
     java_runtimes::{JAVA_RUNTIMES_URL, JavaRuntimes},
     maven::MavenMetadataXml,
     modrinth::{
-        MODRINTH_PROJECT_URL, MODRINTH_SEARCH_URL, ModrinthLoader, ModrinthProjectRequest,
-        ModrinthProjectResult, ModrinthProjectVersion, ModrinthProjectVersionsRequest,
-        ModrinthProjectVersionsResult, ModrinthProjectsRequest, ModrinthProjectsResponse,
-        ModrinthSearchRequest, ModrinthSearchResult, ModrinthVersionFileUpdateResult,
-        ModrinthVersionsFromHashesRequest, ModrinthVersionsFromHashesResponse
+        MODRINTH_PROJECT_URL, MODRINTH_SEARCH_URL, ModrinthChangelogRequest, ModrinthChangelogResult,
+        ModrinthLoader, ModrinthProjectRequest, ModrinthProjectResult, ModrinthProjectVersion,
+        ModrinthProjectVersionsRequest, ModrinthProjectVersionsResult, ModrinthProjectsRequest,
+        ModrinthProjectsResponse, ModrinthSearchRequest, ModrinthSearchResult,
+        ModrinthVersionFileUpdateResult, ModrinthVersionsFromHashesRequest,
+        ModrinthVersionsFromHashesResponse
     },
     version::MinecraftVersion,
     version_manifest::{MOJANG_VERSION_MANIFEST_URL, MinecraftVersionLink, MinecraftVersionManifest}
@@ -339,6 +340,30 @@ impl MetadataItem for ModrinthVersionMetadataItem {
 
     fn state(&self, states: &mut MetadataManagerStates) -> MetaLoadStateWrapper<Self::T> {
         states.modrinth_versions.entry(self.0.clone()).or_default().clone()
+    }
+
+    fn deserialize(bytes: &[u8]) -> Result<Self::T, MetaLoadError> {
+        Ok(serde_json::from_slice(bytes)?)
+    }
+}
+
+#[derive(Debug)]
+pub struct ModrinthChangelogMetadataItem<'a>(pub &'a ModrinthChangelogRequest);
+
+impl<'a> MetadataItem for ModrinthChangelogMetadataItem<'a> {
+    type T = ModrinthChangelogResult;
+
+    fn request(&self, client: &reqwest::Client) -> RequestBuilder {
+        let url = format!("https://api.modrinth.com/v2/version/{}", self.0.version_id);
+        client.get(url)
+    }
+
+    fn expires(&self) -> bool {
+        true
+    }
+
+    fn state(&self, states: &mut MetadataManagerStates) -> MetaLoadStateWrapper<Self::T> {
+        states.modrinth_changelogs.entry(self.0.clone()).or_default().clone()
     }
 
     fn deserialize(bytes: &[u8]) -> Result<Self::T, MetaLoadError> {
@@ -693,6 +718,30 @@ impl<'a> MetadataItem for CurseforgeGetFilesMetadataItem<'a> {
 
     fn state(&self, states: &mut MetadataManagerStates) -> MetaLoadStateWrapper<Self::T> {
         states.curseforge_get_files.entry(self.0.clone()).or_default().clone()
+    }
+
+    fn deserialize(bytes: &[u8]) -> Result<Self::T, MetaLoadError> {
+        Ok(serde_json::from_slice(bytes)?)
+    }
+}
+
+#[derive(Debug)]
+pub struct CurseforgeChangelogMetadataItem<'a>(pub &'a CurseforgeChangelogRequest);
+
+impl<'a> MetadataItem for CurseforgeChangelogMetadataItem<'a> {
+    type T = CurseforgeChangelogResult;
+
+    fn request(&self, client: &reqwest::Client) -> RequestBuilder {
+        client.get(format!("https://api.curseforge.com/v1/mods/{}/files/{}/changelog", self.0.mod_id, self.0.file_id))
+            .header("x-api-key", CURSEFORGE_API_KEY)
+    }
+
+    fn expires(&self) -> bool {
+        true
+    }
+
+    fn state(&self, states: &mut MetadataManagerStates) -> MetaLoadStateWrapper<Self::T> {
+        states.curseforge_changelogs.entry(self.0.clone()).or_default().clone()
     }
 
     fn deserialize(bytes: &[u8]) -> Result<Self::T, MetaLoadError> {

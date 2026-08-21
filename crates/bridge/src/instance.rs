@@ -2,7 +2,7 @@ use std::{path::Path, sync::Arc, time::Duration};
 
 use indexmap::IndexMap;
 use once_cell::sync::Lazy;
-use schema::{auxiliary::AuxDisabledChildren, content::ContentSource, curseforge::{CurseforgeModpackFile, CurseforgeModpackMinecraft}, loader::Loader, server_status::ServerStatus, text_component::FlatTextComponent, unique_bytes::UniqueBytes};
+use schema::{auxiliary::AuxDisabledChildren, content::ContentSource, curseforge::{CurseforgeModLoaderType, CurseforgeModpackFile, CurseforgeModpackMinecraft}, loader::Loader, modrinth::ModrinthLoader, server_status::ServerStatus, text_component::FlatTextComponent, unique_bytes::UniqueBytes};
 
 use crate::{safe_path::SafePath};
 
@@ -267,6 +267,26 @@ impl ContentType {
             Self::Forge => true,
             Self::NeoForge => true,
             _ => false,
+        }
+    }
+
+    pub fn modrinth_loaders(&self) -> Option<Arc<[ModrinthLoader]>> {
+        match self {
+            ContentType::Fabric => Some(vec![ModrinthLoader::Fabric].into()),
+            ContentType::Forge | ContentType::LegacyForge => Some(vec![ModrinthLoader::Forge].into()),
+            ContentType::NeoForge => Some(vec![ModrinthLoader::NeoForge].into()),
+            ContentType::ResourcePack => Some(vec![ModrinthLoader::Minecraft].into()),
+            ContentType::ShaderPack => Some(vec![ModrinthLoader::Iris, ModrinthLoader::Optifine, ModrinthLoader::Canvas].into()),
+            _ => None,
+        }
+    }
+
+    pub fn curseforge_loader(&self) -> Option<CurseforgeModLoaderType> {
+        match self {
+            ContentType::Fabric => Some(CurseforgeModLoaderType::Fabric),
+            ContentType::Forge | ContentType::LegacyForge => Some(CurseforgeModLoaderType::Forge),
+            ContentType::NeoForge => Some(CurseforgeModLoaderType::NeoForge),
+            _ => None,
         }
     }
 }
