@@ -36,7 +36,7 @@ pub struct CurseforgeGetModFilesRequest {
     #[serde(skip_serializing_if = "crate::skip_if_none")]
     pub mod_loader_type: Option<u32>,
     #[serde(default, skip_serializing_if = "crate::skip_if_none")]
-    pub release_types: Option<&'static [u32]>,
+    pub release_types: Option<&'static [CurseforgeReleaseType]>,
     #[serde(skip_serializing_if = "crate::skip_if_none")]
     pub page_size: Option<u32>,
 }
@@ -187,7 +187,8 @@ pub struct CurseforgeFileHash {
     pub algo: u32,
 }
 
-#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+#[serde(into = "u32")]
 #[repr(u32)]
 pub enum CurseforgeReleaseType {
     Release = 1,
@@ -206,6 +207,10 @@ impl CurseforgeReleaseType {
             _ => Self::Other,
         }
     }
+}
+
+impl From<CurseforgeReleaseType> for u32 {
+    fn from(v: CurseforgeReleaseType) -> Self { v as u32 }
 }
 
 #[derive(enumset::EnumSetType, Default, Debug, Hash, PartialOrd, Ord)]

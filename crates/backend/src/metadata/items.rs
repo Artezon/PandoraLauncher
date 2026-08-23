@@ -19,7 +19,7 @@ use schema::{
         ModrinthLoader, ModrinthProjectRequest, ModrinthProjectResult, ModrinthProjectVersion,
         ModrinthProjectVersionsRequest, ModrinthProjectVersionsResult, ModrinthProjectsRequest,
         ModrinthProjectsResponse, ModrinthSearchRequest, ModrinthSearchResult,
-        ModrinthVersionFileUpdateResult, ModrinthVersionsFromHashesRequest,
+        ModrinthVersionFileUpdateResult, ModrinthVersionType, ModrinthVersionsFromHashesRequest,
         ModrinthVersionsFromHashesResponse
     },
     version::MinecraftVersion,
@@ -375,7 +375,7 @@ impl<'a> MetadataItem for ModrinthChangelogMetadataItem<'a> {
 pub struct VersionUpdateParameters {
     pub loaders: Arc<[ModrinthLoader]>,
     pub game_versions: Arc<[Ustr]>,
-    pub version_types: &'static [&'static str],
+    pub version_types: &'static [ModrinthVersionType],
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
@@ -409,7 +409,7 @@ impl MetadataItem for ModrinthVersionUpdateMetadataItem {
 pub struct VersionV3UpdateParameters {
     pub loaders: Arc<[Arc<str>]>,
     pub loader_fields: VersionV3LoaderFields,
-    pub version_types: &'static [&'static str],
+    pub version_types: &'static [ModrinthVersionType],
 }
 
 #[derive(Clone, Debug, Serialize, Hash, PartialEq, Eq)]

@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use ustr::Ustr;
 use uuid::Uuid;
 
-use crate::{fabric_loader_manifest::FabricLoaderManifest, forge::{ForgeMavenManifest, NeoforgeMavenManifest, VersionFragment}, loader::Loader};
+use crate::{curseforge::CurseforgeReleaseType, fabric_loader_manifest::FabricLoaderManifest, forge::{ForgeMavenManifest, NeoforgeMavenManifest, VersionFragment}, loader::Loader, modrinth::ModrinthVersionType};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct InstanceConfiguration {
@@ -149,19 +149,19 @@ pub enum UpdateChannel {
 }
 
 impl UpdateChannel {
-    pub fn modrinth_version_types(self) -> &'static [&'static str] {
+    pub fn modrinth_version_types_with_fallback(self) -> &'static [&'static [ModrinthVersionType]] {
         match self {
-            Self::Release => &["release"],
-            Self::Beta => &["release", "beta"],
-            Self::Alpha => &["release", "beta", "alpha"],
+            Self::Release => &[&[ModrinthVersionType::Release], &[ModrinthVersionType::Beta], &[ModrinthVersionType::Alpha]],
+            Self::Beta => &[&[ModrinthVersionType::Release, ModrinthVersionType::Beta], &[ModrinthVersionType::Alpha]],
+            Self::Alpha => &[&[ModrinthVersionType::Release, ModrinthVersionType::Beta, ModrinthVersionType::Alpha]],
         }
     }
 
-    pub fn curseforge_version_types(self) -> &'static [u32] {
+    pub fn curseforge_release_types_with_fallback(self) -> &'static [&'static [CurseforgeReleaseType]] {
         match self {
-            Self::Release => &[1],
-            Self::Beta => &[1, 2],
-            Self::Alpha => &[1, 2, 3],
+            Self::Release => &[&[CurseforgeReleaseType::Release], &[CurseforgeReleaseType::Beta], &[CurseforgeReleaseType::Alpha]],
+            Self::Beta => &[&[CurseforgeReleaseType::Release, CurseforgeReleaseType::Beta], &[CurseforgeReleaseType::Alpha]],
+            Self::Alpha => &[&[CurseforgeReleaseType::Release, CurseforgeReleaseType::Beta, CurseforgeReleaseType::Alpha]],
         }
     }
 }

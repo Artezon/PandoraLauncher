@@ -571,8 +571,6 @@ impl BackendState {
                     return;
                 };
 
-                let version_types = update_channel.modrinth_version_types();
-
                 let mut content = Vec::new();
                 for folder in ContentFolder::iter() {
                     let Some(summaries) = Instance::load_content(self.clone(), id, folder).await else {
@@ -592,15 +590,6 @@ impl BackendState {
                 tracker.set_total(content.len());
 
                 let semaphore = Semaphore::new(8);
-
-                let modrinth_modpack_params = &VersionV3UpdateParameters {
-                    loaders: ["mrpack".into()].into(),
-                    loader_fields: VersionV3LoaderFields {
-                        mrpack_loaders: [modrinth_loader].into(),
-                        game_versions: [version].into(),
-                    },
-                    version_types,
-                };
 
                 let meta = self.meta.clone();
 
@@ -626,25 +615,45 @@ impl BackendState {
                                 },
                                 ContentSource::ModrinthUnknown | ContentSource::ModrinthProject { .. } => {
                                     let permit = semaphore.acquire().await.unwrap();
-                                    let result = match &summary.content_summary.extra {
-                                        ContentType::ModrinthModpack { .. } => {
-                                            meta.fetch(&ModrinthV3VersionUpdateMetadataItem {
-                                                sha1: hex::encode(summary.content_summary.hash).into(),
-                                                params: modrinth_modpack_params.clone()
-                                            }).await
-                                        },
-                                        extra => {
-                                            let loaders = extra.modrinth_loaders().unwrap_or_else(|| vec![modrinth_loader].into());
-                                            meta.fetch(&ModrinthVersionUpdateMetadataItem {
-                                                sha1: hex::encode(summary.content_summary.hash).into(),
-                                                params: VersionUpdateParameters {
-                                                    loaders,
-                                                    game_versions: [version].into(),
-                                                    version_types,
-                                                }
-                                            }).await
-                                        },
-                                    };
+
+                                    let sha1: Arc<str> = hex::encode(summary.content_summary.hash).into();
+                                    let result = async {
+                                        for &version_types in update_channel.modrinth_version_types_with_fallback().iter() {
+                                            let fetch_result = match &summary.content_summary.extra {
+                                                ContentType::ModrinthModpack { .. } => {
+                                                    meta.fetch(&ModrinthV3VersionUpdateMetadataItem {
+                                                        sha1: sha1.clone(),
+                                                        params: VersionV3UpdateParameters {
+                                                            loaders: ["mrpack".into()].into(),
+                                                            loader_fields: VersionV3LoaderFields {
+                                                                mrpack_loaders: [modrinth_loader].into(),
+                                                                game_versions: [version].into(),
+                                                            },
+                                                            version_types,
+                                                        },
+                                                    }).await
+                                                },
+                                                extra => {
+                                                    let loaders = extra.modrinth_loaders().unwrap_or_else(|| vec![modrinth_loader].into());
+                                                    meta.fetch(&ModrinthVersionUpdateMetadataItem {
+                                                        sha1: sha1.clone(),
+                                                        params: VersionUpdateParameters {
+                                                            loaders,
+                                                            game_versions: [version].into(),
+                                                            version_types,
+                                                        }
+                                                    }).await
+                                                },
+                                            };
+
+                                            if !matches!(fetch_result, Err(MetaLoadError::NonOK(404))) {
+                                                return fetch_result;
+                                            }
+                                        }
+
+                                        Err(MetaLoadError::NonOK(404))
+                                    }.await;
+
                                     drop(permit);
 
                                     tracker.add_count(1);
@@ -689,13 +698,29 @@ impl BackendState {
 
                                     let mod_loader_type = summary.content_summary.extra.curseforge_loader().map(|loader| loader as u32);
 
-                                    let result = self.meta.fetch(&CurseforgeGetModFilesMetadataItem(&CurseforgeGetModFilesRequest {
-                                        mod_id: project_id,
-                                        game_version: Some(version),
-                                        mod_loader_type,
-                                        release_types: Some(update_channel.curseforge_version_types()),
-                                        page_size: Some(1)
-                                    })).await;
+                                    let result = async {
+                                        for &release_types in update_channel.curseforge_release_types_with_fallback().iter() {
+                                            let fetch_result = self.meta.fetch(&CurseforgeGetModFilesMetadataItem(
+                                                &CurseforgeGetModFilesRequest {
+                                                    mod_id: project_id,
+                                                    game_version: Some(version),
+                                                    mod_loader_type,
+                                                    release_types: Some(release_types),
+                                                    page_size: Some(1)
+                                                }
+                                            )).await;
+
+                                            if match &fetch_result {
+                                                Err(MetaLoadError::NonOK(404)) => false,
+                                                Ok(files) => !files.data.is_empty(),
+                                                Err(_) => true,
+                                            } {
+                                                return fetch_result;
+                                            }
+                                        }
+
+                                        Err(MetaLoadError::NonOK(404))
+                                    }.await;
 
                                     drop(permit);
 

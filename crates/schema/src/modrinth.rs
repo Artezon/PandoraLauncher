@@ -250,7 +250,7 @@ impl ModrinthLoader {
     }
 }
 
-#[derive(Debug, Copy, Clone, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, Deserialize, Serialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "lowercase")]
 pub enum ModrinthVersionType {
     Release,
