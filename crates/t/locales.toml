@@ -2878,6 +2878,9 @@ hu = "Telepítés egyedileg - nem lehet autómatikusan frissíteni"
 sv = "Installera manuellt - kan inte automatiskt uppdatera"
 ru = "Установлено вручную - автоматическое обновление невозможно"
 fr = "Installé manuellement - ne peut pas être mis à jour automatiquement"
+[instance.content.change_version.version]
+en = "${name: &str} (${loader: &str} ${mc_version: &str})"
+ru = "${name: &str} (${loader: &str} ${mc_version: &str})"
 [instance.content.change_version.show_incompatible]
 en = "Show incompatible"
 ru = "Показать несовместимые"

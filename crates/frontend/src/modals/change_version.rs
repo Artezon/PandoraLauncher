@@ -7,6 +7,7 @@ use gpui::{prelude::*, *};
 use gpui_component::{
     ActiveTheme, Disableable, Sizable, button::{Button, ButtonVariants}, checkbox::Checkbox, dialog::Dialog, h_flex, list::ListState, notification::NotificationType, select::{SearchableVec, Select, SelectItem, SelectState}, skeleton::Skeleton, spinner::Spinner, text::TextView, v_flex, IndexPath, WindowExt
 };
+use itertools::Itertools;
 use parking_lot::Mutex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use schema::{
@@ -42,6 +43,7 @@ enum VersionSource {
 struct VersionItem {
     key: VersionKey,
     name: SharedString,
+    raw_name: SharedString,
     date_published: Option<Arc<str>>,
     sha1: Option<Arc<str>>,
     source: VersionSource,
@@ -110,17 +112,26 @@ fn modrinth_version_item(version: &ModrinthProjectVersion) -> Option<VersionItem
         return None;
     }
 
+    let mc_version = version.game_versions.as_deref()
+        .and_then(display_game_version)
+        .unwrap_or_else(|| t::common::unknown().to_string());
+    let loader = version.loaders.as_deref().and_then(<[ModrinthLoader]>::first)
+        .filter(|loader| !matches!(loader, ModrinthLoader::Unknown))
+        .map(|loader| loader.pretty_name())
+        .unwrap_or("Minecraft");
+
     let raw_name = version.version_number.clone().or_else(|| version.name.clone()).unwrap_or_else(|| version.id.clone());
-    let mut name = SharedString::new(raw_name);
-    match version.version_type {
-        Some(ModrinthVersionType::Beta) => name = t::modrinth::versions::beta(&name).into(),
-        Some(ModrinthVersionType::Alpha) => name = t::modrinth::versions::alpha(&name).into(),
-        _ => {},
-    }
+    let base = t::instance::content::change_version::version(&raw_name, loader, &mc_version);
+    let name: SharedString = match version.version_type {
+        Some(ModrinthVersionType::Beta) => t::modrinth::versions::beta(&base).into(),
+        Some(ModrinthVersionType::Alpha) => t::modrinth::versions::alpha(&base).into(),
+        _ => base.into(),
+    };
 
     Some(VersionItem {
         key: VersionKey::Modrinth(version.id.clone()),
         name,
+        raw_name: raw_name.into(),
         date_published: version.date_published.clone(),
         sha1: version.files.iter().find(|file| file.primary)
             .or_else(|| version.files.first())
@@ -130,16 +141,25 @@ fn modrinth_version_item(version: &ModrinthProjectVersion) -> Option<VersionItem
 }
 
 fn curseforge_version_item(file: &CurseforgeFile) -> VersionItem {
-    let mut name = SharedString::from(file.file_name.to_string());
-    match CurseforgeReleaseType::from_u32(file.release_type) {
-        CurseforgeReleaseType::Beta => name = t::modrinth::versions::beta(&name).into(),
-        CurseforgeReleaseType::Alpha => name = t::modrinth::versions::alpha(&name).into(),
-        _ => {},
-    }
+    let game_versions = file.game_versions.as_deref().unwrap_or_default();
+    let mc_version = display_game_version(game_versions).unwrap_or_else(|| t::common::unknown().to_string());
+    let loader = game_versions.iter().find_map(|name| {
+        let loader = CurseforgeModLoaderType::from_name(name.as_str());
+        (loader != CurseforgeModLoaderType::Any).then(|| loader.pretty_name())
+    })
+    .unwrap_or("Minecraft");
+
+    let base = t::instance::content::change_version::version(&file.file_name, loader, &mc_version);
+    let name: SharedString = match CurseforgeReleaseType::from_u32(file.release_type) {
+        CurseforgeReleaseType::Beta => t::modrinth::versions::beta(&base).into(),
+        CurseforgeReleaseType::Alpha => t::modrinth::versions::alpha(&base).into(),
+        _ => base.into(),
+    };
 
     VersionItem {
         key: VersionKey::Curseforge(file.id),
         name,
+        raw_name: file.file_name.to_string().into(),
         date_published: file.file_date.clone(),
         sha1: file.hashes.iter().find(|hash| hash.algo == 1).map(|hash| hash.value.clone()),
         source: VersionSource::Curseforge(file.clone()),
@@ -165,6 +185,16 @@ fn is_alpha(item: &VersionItem) -> bool {
         VersionSource::Modrinth(version) => version.version_type == Some(ModrinthVersionType::Alpha),
         VersionSource::Curseforge(file) => CurseforgeReleaseType::from_u32(file.release_type) == CurseforgeReleaseType::Alpha,
     }
+}
+
+fn display_game_version(game_versions: &[Ustr]) -> Option<String> {
+    let first = game_versions.first()?.as_str();
+
+    Some(match game_versions.len() {
+        1 => first.to_owned(),
+        2 | 3 => game_versions.iter().map(Ustr::as_str).join(", "),
+        _ => format!("{first}+"),
+    })
 }
 
 struct ChangeVersionDialog {
@@ -540,8 +570,8 @@ impl ChangeVersionDialog {
         let same_version = selected.as_ref().and_then(|selected| selected.sha1.as_deref()) == Some(self.installed_sha1.as_ref());
 
         let label: SharedString = match (&selected, is_downgrade) {
-            (Some(selected), true) => t::instance::content::change_version::downgrade_to(selected.name.as_str()).into(),
-            (Some(selected), false) => t::instance::content::change_version::update_to(selected.name.as_str()).into(),
+            (Some(selected), true) => t::instance::content::change_version::downgrade_to(selected.raw_name.as_str()).into(),
+            (Some(selected), false) => t::instance::content::change_version::update_to(selected.raw_name.as_str()).into(),
             (None, _) => t::common::update().into(),
         };
 
