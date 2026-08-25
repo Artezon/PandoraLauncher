@@ -98,7 +98,7 @@ fn versions_request(
             game_version: minecraft_version,
             mod_loader_type: curseforge_loader.map(|loader| loader as u32),
             release_types: None,
-            page_size: Some(50),
+            page_size: Some(5000),
         }),
         _ => unreachable!(),
     }
