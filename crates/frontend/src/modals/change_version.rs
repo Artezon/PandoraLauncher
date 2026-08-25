@@ -317,6 +317,10 @@ impl ChangeVersionDialog {
         }
 
         if is_project(&self.content_source) {
+            if self.active_versions().is_some() {
+                return;
+            }
+
             let request = if self.show_incompatible {
                 versions_request(&self.content_source, None, None, None)
             } else {

@@ -206,7 +206,7 @@ impl MetadataManager {
         let mut wrapper = wrapper.lock().await;
 
         let is_valid = wrapper.0.as_ref().map(|h| h.is_alive()).unwrap_or(true);
-        if !is_valid || matches!(wrapper.1, MetaLoadState::Unloaded) {
+        if !is_valid || matches!(wrapper.1, MetaLoadState::Unloaded | MetaLoadState::Error(_)) {
             if item.expires() {
                 let keep_alive = KeepAlive::new();
                 let handle = keep_alive.create_handle();
@@ -233,7 +233,7 @@ impl MetadataManager {
         let mut wrapper = wrapper.lock().await;
 
         let is_valid = wrapper.0.as_ref().map(|h| h.is_alive()).unwrap_or(true);
-        if force_reload || !is_valid || matches!(wrapper.1, MetaLoadState::Unloaded) {
+        if force_reload || !is_valid || matches!(wrapper.1, MetaLoadState::Unloaded | MetaLoadState::Error(_)) {
             if item.expires() {
                 let keep_alive = KeepAlive::new();
                 let handle = keep_alive.create_handle();
