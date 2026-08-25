@@ -20,7 +20,7 @@ use schema::{
 use ustr::Ustr;
 
 use crate::{
-    component::content_list::ContentListDelegate,
+    component::{content_list::ContentListDelegate, error_alert::ErrorAlert},
     entity::{
         DataEntities, metadata::{AsMetadataResult, FrontendMetadata, FrontendMetadataResult, FrontendMetadataState}
     },
@@ -222,6 +222,8 @@ struct ChangeVersionDialog {
     current_date_published: Option<Arc<str>>,
     show_incompatible: bool,
     changelogs: FxHashMap<VersionKey, Entity<FrontendMetadataState>>,
+    versions_error: Option<SharedString>,
+    changelog_error: Option<SharedString>,
     _versions_subscription: Option<Subscription>,
     _changelog_subscription: Option<Subscription>,
 }
@@ -284,6 +286,8 @@ pub fn open(
         current_date_published: None,
         show_incompatible: false,
         changelogs: Default::default(),
+        versions_error: None,
+        changelog_error: None,
         _versions_subscription: None,
         _changelog_subscription: None,
     };
@@ -345,7 +349,10 @@ impl ChangeVersionDialog {
                 .and_then(|version| version.as_ref())
                 .map(|version| version.project_id.clone()),
             FrontendMetadataResult::Loading => return,
-            FrontendMetadataResult::Error(_) => None,
+            FrontendMetadataResult::Error(error) => {
+                 self.versions_error = Some(error);
+                 None
+            },
         };
 
         let source = match project_id {
@@ -392,17 +399,27 @@ impl ChangeVersionDialog {
                     ContentSource::ModrinthProject { .. } => {
                         let result: FrontendMetadataResult<ModrinthProjectVersionsResult> = versions.read(cx).result();
                         match result {
-                            FrontendMetadataResult::Loaded(versions) => self.items = Some(versions.0.iter().filter_map(modrinth_version_item).collect()),
-                            FrontendMetadataResult::Loading => {},
-                            FrontendMetadataResult::Error(_) => self.items = Some(Vec::new()),
+                            FrontendMetadataResult::Loaded(versions) => {
+                                self.versions_error = None;
+                                self.items = Some(versions.0.iter().filter_map(modrinth_version_item).collect());
+                            },
+                            FrontendMetadataResult::Loading => self.versions_error = None,
+                            FrontendMetadataResult::Error(error) => {
+                                self.versions_error = Some(error);
+                            },
                         }
                     },
                     ContentSource::CurseforgeProject { .. } => {
                         let result: FrontendMetadataResult<CurseforgeGetModFilesResult> = versions.read(cx).result();
                         match result {
-                            FrontendMetadataResult::Loaded(result) => self.items = Some(result.data.iter().map(curseforge_version_item).collect()),
-                            FrontendMetadataResult::Loading => {},
-                            FrontendMetadataResult::Error(_) => self.items = Some(Vec::new()),
+                            FrontendMetadataResult::Loaded(result) => {
+                                self.versions_error = None;
+                                self.items = Some(result.data.iter().map(curseforge_version_item).collect());
+                            },
+                            FrontendMetadataResult::Loading => self.versions_error = None,
+                            FrontendMetadataResult::Error(error) => {
+                                self.versions_error = Some(error);
+                            },
                         }
                     },
                     _ => self.items = Some(Vec::new()),
@@ -456,10 +473,11 @@ impl ChangeVersionDialog {
         }
     }
 
-    fn changelog_display(&self, key: &VersionKey, cx: &App) -> ChangelogDisplay {
+    fn changelog_display(&mut self, key: &VersionKey, cx: &App) -> ChangelogDisplay {
         let Some(entity) = self.changelogs.get(key) else {
             return ChangelogDisplay::Loading;
         };
+        self.changelog_error = None;
 
         match key {
             VersionKey::Modrinth(_) => {
@@ -471,7 +489,10 @@ impl ChangeVersionDialog {
                             .filter(|changelog| !changelog.trim_ascii().is_empty())
                             .map(|changelog| ChangelogContent::Markdown(SharedString::from(changelog.to_string()))),
                     ),
-                    FrontendMetadataResult::Error(_) => ChangelogDisplay::Loaded(None),
+                    FrontendMetadataResult::Error(error) => {
+                        self.changelog_error = Some(error);
+                        ChangelogDisplay::Loaded(None)
+                    },
                 }
             },
             VersionKey::Curseforge(_) => {
@@ -483,13 +504,16 @@ impl ChangeVersionDialog {
                             .filter(|data| !data.trim_ascii().is_empty())
                             .map(|data| ChangelogContent::Html(SharedString::from(data.to_string()))),
                     ),
-                    FrontendMetadataResult::Error(_) => ChangelogDisplay::Loaded(None),
+                    FrontendMetadataResult::Error(error) => {
+                        self.changelog_error = Some(error);
+                        ChangelogDisplay::Loaded(None)
+                    },
                 }
             },
         }
     }
 
-    fn render_changelog_area(&self, selected_key: Option<&VersionKey>, cx: &App) -> AnyElement {
+    fn render_changelog_area(&mut self, selected_key: Option<&VersionKey>, cx: &App) -> AnyElement {
         let display = match (selected_key, self.version_select_state.is_none()) {
             (None, true) => ChangelogDisplay::Loading,
             (None, false) => ChangelogDisplay::Loaded(None),
@@ -554,6 +578,10 @@ impl ChangeVersionDialog {
             self.request_versions(cx);
         }
         let version_select = self.render_version_select(window, cx);
+
+        if let Some(error) = self.versions_error.clone() {
+            return modal.child(v_flex().gap_3().child(ErrorAlert::new(t::common::error().into(), error)));
+        }
 
         let selected = self.version_select_state.as_ref().and_then(|state| state.read(cx).selected_value()).cloned();
 
@@ -688,6 +716,12 @@ impl ChangeVersionDialog {
             }))
             .child(action_button);
 
+        let changelog_area = self.render_changelog_area(selected.as_ref().map(|selected| &selected.key), cx);
+
+        if let Some(error) = self.changelog_error.clone() {
+            return modal.child(v_flex().gap_3().child(ErrorAlert::new(t::common::error().into(), error)));
+        }
+
         let content = v_flex().gap_2()
             .child(
                 v_flex()
@@ -712,7 +746,7 @@ impl ChangeVersionDialog {
                         cx.notify();
                     })),
             )
-            .child(self.render_changelog_area(selected.as_ref().map(|selected| &selected.key), cx))
+            .child(changelog_area)
             .child(buttons);
 
         modal.child(content)
