@@ -188,6 +188,11 @@ impl ModalRoot {
                 cancel.cancel();
             })
             .window_control_area(WindowControlArea::Drag)
+            .on_any_mouse_down(|_, window, cx| {
+                if window.default_prevented() {
+                    cx.stop_propagation();
+                }
+            })
             .on_mouse_down_out({
                 let should_move = self.should_move.clone();
                 move |_, _, _| {
