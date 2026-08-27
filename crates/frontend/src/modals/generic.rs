@@ -152,6 +152,9 @@ impl ModalRoot {
             let progress = v_flex().gap_2().children(progress_entries);
 
             if is_finishing {
+                if self.modal_action.has_requested_cancel() {
+                    window.remove_window();
+                }
                 let dismiss = Button::new("ok")
                     .with_variant(ButtonVariant::Secondary)
                     .label(t::common::ok())
