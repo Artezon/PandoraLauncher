@@ -385,12 +385,17 @@ pub fn show_modal(
     modal_action: ModalAction,
 ) {
     let min_size = Size::new(px(448.0), px(96.0));
-    let bounds = window.display(cx).map(|d| d.bounds()).unwrap_or_else(|| window.bounds());
+    let (bounds, display_id) = if let Some(display) = window.display(cx) {
+        (display.bounds(), Some(display.id()))
+    } else {
+        (window.bounds(), None)
+    };
     _ = cx.open_window(WindowOptions {
         window_bounds: Some(WindowBounds::Windowed(Bounds {
             origin: bounds.center() - min_size.center(),
             size: min_size
         })),
+        display_id,
         titlebar: None,
         focus: true,
         show: true,
