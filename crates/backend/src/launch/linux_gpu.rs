@@ -418,7 +418,7 @@ fn is_discrete_gpu_xe(device: &GpuDevice) -> std::io::Result<bool> {
     }
 
     let mut data = vec![0_u64; ((device_query.size+7)/8) as usize];
-    device_query.data = (&mut data as *mut Vec<_>).addr() as u64;
+    device_query.data = data.as_mut_ptr().addr() as u64;
 
     // If size is equal to the required size, the queried information is copied into data.
     drm_command_read_write(fd, DRM_XE_DEVICE_QUERY, &mut device_query)?;
