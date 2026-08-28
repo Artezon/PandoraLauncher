@@ -14,7 +14,7 @@ use schema::{
     curseforge::{CurseforgeChangelogRequest, CurseforgeChangelogResult, CurseforgeFile, CurseforgeGetModFilesRequest, CurseforgeGetModFilesResult, CurseforgeModLoaderType, CurseforgeReleaseType},
     instance::UpdateChannel,
     loader::Loader,
-    modrinth::{ModrinthChangelogRequest, ModrinthChangelogResult, ModrinthLoader, ModrinthProjectVersion, ModrinthProjectVersionsRequest, ModrinthProjectVersionsResult, ModrinthVersionStatus, ModrinthVersionType}
+    modrinth::{ModrinthChangelogRequest, ModrinthChangelogResult, ModrinthLoader, ModrinthProjectVersion, ModrinthProjectVersionsRequest, ModrinthProjectVersionsResult, ModrinthVersionType}
 };
 use ustr::Ustr;
 
@@ -105,9 +105,6 @@ fn versions_request(
 
 fn modrinth_version_item(version: &ModrinthProjectVersion) -> Option<VersionItem> {
     if version.files.is_empty() {
-        return None;
-    }
-    if let Some(status) = version.status && !matches!(status, ModrinthVersionStatus::Listed | ModrinthVersionStatus::Archived) {
         return None;
     }
 
