@@ -693,7 +693,7 @@ impl BackendState {
 
                                     let result = async {
                                         for &release_types in update_channel.curseforge_release_types_with_fallback().iter() {
-                                            let fetch_result = self.meta.fetch(&CurseforgeGetModFilesMetadataItem(
+                                            let fetch_result = meta.fetch(&CurseforgeGetModFilesMetadataItem(
                                                 &CurseforgeGetModFilesRequest {
                                                     mod_id: project_id,
                                                     game_version: Some(version),
