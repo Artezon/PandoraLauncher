@@ -270,14 +270,14 @@ impl ContentType {
         }
     }
 
-    pub fn modrinth_loaders(&self) -> Option<Arc<[ModrinthLoader]>> {
+    pub fn modrinth_loaders(&self, fallback: ModrinthLoader) -> Arc<[ModrinthLoader]> {
         match self {
-            ContentType::Fabric => Some(vec![ModrinthLoader::Fabric].into()),
-            ContentType::Forge | ContentType::LegacyForge => Some(vec![ModrinthLoader::Forge].into()),
-            ContentType::NeoForge => Some(vec![ModrinthLoader::NeoForge].into()),
-            ContentType::ResourcePack => Some(vec![ModrinthLoader::Minecraft].into()),
-            ContentType::ShaderPack => Some(vec![ModrinthLoader::Iris, ModrinthLoader::Optifine, ModrinthLoader::Canvas].into()),
-            _ => None,
+            ContentType::Fabric => [ModrinthLoader::Fabric].into(),
+            ContentType::Forge | ContentType::LegacyForge => [ModrinthLoader::Forge].into(),
+            ContentType::NeoForge => [ModrinthLoader::NeoForge].into(),
+            ContentType::ResourcePack => [ModrinthLoader::Minecraft].into(),
+            ContentType::ShaderPack => [ModrinthLoader::Iris, ModrinthLoader::Optifine, ModrinthLoader::Canvas].into(),
+            ContentType::Unknown | ContentType::JavaModule | ContentType::ModrinthModpack { .. } | ContentType::CurseforgeModpack { .. } => [fallback].into(),
         }
     }
 
@@ -286,7 +286,7 @@ impl ContentType {
             ContentType::Fabric => Some(CurseforgeModLoaderType::Fabric),
             ContentType::Forge | ContentType::LegacyForge => Some(CurseforgeModLoaderType::Forge),
             ContentType::NeoForge => Some(CurseforgeModLoaderType::NeoForge),
-            _ => None,
+            ContentType::Unknown | ContentType::JavaModule | ContentType::ModrinthModpack { .. } | ContentType::CurseforgeModpack { .. } | ContentType::ResourcePack | ContentType::ShaderPack => None,
         }
     }
 }

@@ -573,8 +573,8 @@ impl BackendState {
                     content.extend_from_slice(&*summaries);
                 }
 
-                let modrinth_loader = loader.as_modrinth_loader();
-                if modrinth_loader == ModrinthLoader::Unknown {
+                let instance_modrinth_loader = loader.as_modrinth_loader();
+                if instance_modrinth_loader == ModrinthLoader::Unknown {
                     modal_action.set_finished_with_error("Unable to update instance, unsupported loader".into());
                     return;
                 }
@@ -619,7 +619,7 @@ impl BackendState {
                                                         params: VersionV3UpdateParameters {
                                                             loaders: ["mrpack".into()].into(),
                                                             loader_fields: VersionV3LoaderFields {
-                                                                mrpack_loaders: [modrinth_loader].into(),
+                                                                mrpack_loaders: [instance_modrinth_loader].into(),
                                                                 game_versions: [version].into(),
                                                             },
                                                             version_types,
@@ -627,7 +627,7 @@ impl BackendState {
                                                     }).await
                                                 },
                                                 extra => {
-                                                    let loaders = extra.modrinth_loaders().unwrap_or_else(|| vec![modrinth_loader].into());
+                                                    let loaders = extra.modrinth_loaders(instance_modrinth_loader);
                                                     meta.fetch(&ModrinthVersionUpdateMetadataItem {
                                                         sha1: sha1.clone(),
                                                         params: VersionUpdateParameters {

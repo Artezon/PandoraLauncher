@@ -211,7 +211,7 @@ struct ChangeVersionDialog {
     loader: Loader,
     minecraft_version: Ustr,
     update_channel: UpdateChannel,
-    modrinth_loaders: Option<Arc<[ModrinthLoader]>>,
+    modrinth_loaders: Arc<[ModrinthLoader]>,
     curseforge_loader: Option<CurseforgeModLoaderType>,
 
     versions_filtered: Option<Entity<FrontendMetadataState>>,
@@ -247,7 +247,7 @@ pub fn open(
     sha1.copy_from_slice(&summary.content_summary.hash);
     let installed_sha1: Arc<str> = hex::encode(sha1).into();
 
-    let modrinth_loaders = summary.content_summary.extra.modrinth_loaders();
+    let modrinth_loaders = summary.content_summary.extra.modrinth_loaders(loader.as_modrinth_loader());
     let curseforge_loader = summary.content_summary.extra.curseforge_loader();
 
     let content_name: SharedString = summary.content_summary.name.clone()
@@ -324,7 +324,7 @@ impl ChangeVersionDialog {
             let request = if self.show_incompatible {
                 versions_request(&self.content_source, None, None, None)
             } else {
-                versions_request(&self.content_source, Some(self.minecraft_version), self.modrinth_loaders.clone(), self.curseforge_loader)
+                versions_request(&self.content_source, Some(self.minecraft_version), Some(self.modrinth_loaders.clone()), self.curseforge_loader)
             };
 
             let entity = FrontendMetadata::request(&self.data.metadata, request, cx);
