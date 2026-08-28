@@ -7,7 +7,6 @@ use gpui::{prelude::*, *};
 use gpui_component::{
     ActiveTheme, Disableable, Sizable, button::{Button, ButtonVariants}, checkbox::Checkbox, dialog::Dialog, h_flex, list::ListState, notification::NotificationType, select::{SearchableVec, Select, SelectItem, SelectState}, skeleton::Skeleton, spinner::Spinner, text::TextView, v_flex, IndexPath, WindowExt
 };
-use itertools::Itertools;
 use parking_lot::Mutex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use schema::{
@@ -192,8 +191,8 @@ fn display_game_version(game_versions: &[Ustr]) -> Option<String> {
 
     Some(match game_versions.len() {
         1 => first.to_owned(),
-        2 | 3 => game_versions.iter().map(Ustr::as_str).join(", "),
-        _ => format!("{first}+"),
+        2 => t::common::and(first, game_versions.get(1)?),
+        _ => t::common::range(first, game_versions.last()?),
     })
 }
 
