@@ -1,7 +1,7 @@
 use std::{path::Path, sync::Arc};
 
 use bridge::{
-    install::{ContentDownload, ContentInstall, ContentInstallFile, ContentInstallPath, InstallTarget}, instance::{ContentType, InstanceContentSummary, InstanceID}, message::MessageToBackend, meta::MetadataRequest
+    install::{ContentDownload, ContentInstall, ContentInstallFile, ContentInstallPath, InstallTarget}, instance::{ContentType, InstanceContentSummary, InstanceID}, meta::MetadataRequest
 };
 use gpui::{prelude::*, *};
 use gpui_component::{
@@ -14,7 +14,7 @@ use schema::{
     curseforge::{CurseforgeChangelogRequest, CurseforgeChangelogResult, CurseforgeFile, CurseforgeGetModFilesRequest, CurseforgeGetModFilesResult, CurseforgeModLoaderType, CurseforgeReleaseType},
     instance::UpdateChannel,
     loader::Loader,
-    modrinth::{ModrinthChangelogRequest, ModrinthChangelogResult, ModrinthLoader, ModrinthProjectVersion, ModrinthProjectVersionsRequest, ModrinthProjectVersionsResult, ModrinthVersionStatus, ModrinthVersionType, ModrinthVersionsFromHashesRequest, ModrinthVersionsFromHashesResponse}
+    modrinth::{ModrinthChangelogRequest, ModrinthChangelogResult, ModrinthLoader, ModrinthProjectVersion, ModrinthProjectVersionsRequest, ModrinthProjectVersionsResult, ModrinthVersionStatus, ModrinthVersionType}
 };
 use ustr::Ustr;
 
@@ -312,7 +312,8 @@ impl ChangeVersionDialog {
 
     fn request_versions(&mut self, cx: &mut Context<Self>) {
         if self.content_source == ContentSource::ModrinthUnknown {
-            self.discover_project(cx);
+            self.versions_error = Some("Unable to get versions for this project. Please reinstall it.".into());
+            return;
         }
 
         if is_project(&self.content_source) {
@@ -335,41 +336,6 @@ impl ChangeVersionDialog {
                 self.versions_filtered = Some(entity);
             }
         }
-    }
-
-    fn discover_project(&mut self, cx: &mut Context<Self>) {
-        let request = FrontendMetadata::request(
-            &self.data.metadata,
-            MetadataRequest::ModrinthVersionsFromHashes(ModrinthVersionsFromHashesRequest {
-                hashes: vec![self.installed_sha1.clone()].into(),
-                algorithm: "sha1".into(),
-            }),
-            cx,
-        );
-        let result: FrontendMetadataResult<ModrinthVersionsFromHashesResponse> = request.read(cx).result();
-        let project_id = match result {
-            FrontendMetadataResult::Loaded(response) => response.0.get(self.installed_sha1.as_ref())
-                .and_then(|version| version.as_ref())
-                .map(|version| version.project_id.clone()),
-            FrontendMetadataResult::Loading => return,
-            FrontendMetadataResult::Error(error) => {
-                 self.versions_error = Some(error);
-                 None
-            },
-        };
-
-        let source = match project_id {
-            Some(project_id) => ContentSource::ModrinthProject { project_id },
-            None => {
-                self.items = Some(Vec::new());
-                return;
-            },
-        };
-        let mut hash = [0_u8; 20];
-        if hex::decode_to_slice(self.installed_sha1.as_ref(), &mut hash).is_ok() {
-            self.data.backend_handle.send(MessageToBackend::SetContentSource { hash, source: source.clone() });
-        }
-        self.content_source = source;
     }
 
     fn request_changelog(&mut self, key: &VersionKey, cx: &mut Context<Self>) {
@@ -427,8 +393,7 @@ impl ChangeVersionDialog {
                     },
                     _ => self.items = Some(Vec::new()),
                 },
-                None if self.content_source != ContentSource::ModrinthUnknown => self.items = Some(Vec::new()),
-                None => {},
+                None => self.items = Some(Vec::new()),
             }
         }
 

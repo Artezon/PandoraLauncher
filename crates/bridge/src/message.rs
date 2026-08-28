@@ -3,7 +3,7 @@ use std::{
 };
 
 use schema::{
-    backend_config::{BackendConfig, ProxyConfig}, content::ContentSource, instance::{
+    backend_config::{BackendConfig, ProxyConfig}, instance::{
         InstanceConfiguration, InstanceJvmBinaryConfiguration, InstanceJvmFlagsConfiguration,
         InstanceLinuxWrapperConfiguration, InstanceMemoryConfiguration, InstanceSystemLibrariesConfiguration, InstanceWrapperCommandConfiguration, UpdateChannel,
     }, loader::Loader, minecraft_profile::{MinecraftProfileCape, SkinVariant}, pandora_update::UpdatePrompt, unique_bytes::UniqueBytes
@@ -103,10 +103,6 @@ pub enum MessageToBackend {
     SetInstanceUpdateChannel {
         id: InstanceID,
         update_channel: UpdateChannel,
-    },
-    SetContentSource {
-        hash: [u8; 20],
-        source: ContentSource,
     },
     SetInstancePreferredAccount {
     	id: InstanceID,
