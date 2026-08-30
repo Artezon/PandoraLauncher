@@ -2928,6 +2928,10 @@ hu = "${name: &str} (${loader: &str} ${mc_version: &str})"
 sv = "${name: &str} (${loader: &str} ${mc_version: &str})"
 ru = "${name: &str} (${loader: &str} ${mc_version: &str})"
 fr = "${name: &str} (${loader: &str} ${mc_version: &str})"
+[instance.content.change_version.error_loading_versions]
+en = "Error loading versions"
+[instance.content.change_version.error_loading_changelog]
+en = "Error loading changelog"
 [instance.content.change_version.show_incompatible]
 en = "Show incompatible"
 ru = "Показать несовместимые"
