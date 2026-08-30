@@ -11,6 +11,7 @@ pub struct PlayerModelWidget {
     yaw_slider_state: Entity<SliderState>,
     pitch_slider_state: Entity<SliderState>,
     animation_slider_state: Entity<SliderState>,
+    zoom_slider_state: Entity<SliderState>,
     animating_yaw: bool,
     animating_pitch_positive: bool,
     animating_pitch: bool,
@@ -31,18 +32,23 @@ impl PlayerModelWidget {
         let animation_slider_state = cx.new(|_| {
             SliderState::new().min(0.0).max(1.0).step(1.0/800.0).default_value(player_model::DEFAULT_ANIMATION as f32)
         });
+        let zoom_slider_state = cx.new(|_| {
+            SliderState::new().min(0.5).max(4.0).step(0.01).default_value(player_model::DEFAULT_ZOOM as f32)
+        });
 
         let variant = crate::skin_renderer::determine_skin_variant(&skin).unwrap_or(SkinVariant::Classic);
 
         cx.subscribe(&yaw_slider_state, Self::on_yaw_changed).detach();
         cx.subscribe(&pitch_slider_state, Self::on_pitch_changed).detach();
         cx.subscribe(&animation_slider_state, Self::on_animation_changed).detach();
+        cx.subscribe(&zoom_slider_state, Self::on_zoom_changed).detach();
 
         Self {
             player_model_state: PlayerModelState::new(cx, skin, variant),
             yaw_slider_state,
             pitch_slider_state,
             animation_slider_state,
+            zoom_slider_state,
             animating_yaw: false,
             animating_pitch_positive: true,
             animating_pitch: false,
@@ -114,6 +120,16 @@ impl PlayerModelWidget {
         })
     }
 
+    fn on_zoom_changed(&mut self, _: Entity<SliderState>, event: &SliderEvent, cx: &mut Context<Self>) {
+        let SliderEvent::Change(change) = event else {
+            return;
+        };
+        self.player_model_state.update(cx, |state, cx| {
+            state.zoom = change.start() as f64;
+            cx.notify();
+        })
+    }
+
     pub fn update_animations(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if !self.animating_yaw && !self.animating_pitch && !self.animating_animation {
             return;
@@ -178,9 +194,9 @@ impl Render for RotatingModel {
 
 impl Render for PlayerModelWidget {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let (yaw, pitch) = {
+        let (yaw, pitch, zoom) = {
             let model_state = self.player_model_state.read(cx);
-            (model_state.yaw, model_state.pitch)
+            (model_state.yaw, model_state.pitch, model_state.zoom)
         };
 
         self.update_animations(window, cx);
@@ -229,6 +245,21 @@ impl Render for PlayerModelWidget {
                             });
                         }
                         widget.last_drag = Some(event.event.position);
+                    }
+                }))
+                .on_scroll_wheel(cx.listener({
+                    |widget, event: &ScrollWheelEvent, window, cx| {
+                        widget.player_model_state.update(cx, |state, cx| {
+                            let delta: f64 = match event.delta {
+                                ScrollDelta::Pixels(pixels) => pixels.y.into(),
+                                ScrollDelta::Lines(lines) => lines.y.into(),
+                            };
+                            state.zoom = (state.zoom + delta * 0.1).clamp(0.5, 4.0);
+                            widget.zoom_slider_state.update(cx, |slider, cx| {
+                                slider.set_value(state.zoom as f32, window, cx);
+                            });
+                            cx.notify();
+                        });
                     }
                 }))
             )
@@ -290,6 +321,10 @@ impl Render for PlayerModelWidget {
                                 cx.notify();
                             }))))
                     .child(Slider::new(&self.animation_slider_state)))
+                .child(v_flex()
+                    .child(div().w_full().text_sm()
+                        .child(t::skins::player_model::zoom((zoom * 100.0_f64) as i32)))
+                    .child(Slider::new(&self.zoom_slider_state)))
             )
     }
 }
