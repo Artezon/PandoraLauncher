@@ -306,7 +306,10 @@ impl ContentListDelegate {
             .checked(summary.enabled)
             .disabled(!summary.can_toggle)
             .when(summary.can_toggle, |this| {
-                this.on_click(cx.listener(move |this, checked, _, _| {
+                this.on_click(cx.listener(move |this, checked, window, cx| {
+                    cx.stop_propagation();
+                    window.prevent_default();
+
                     let delegate = this.delegate();
                     if delegate.is_selected(element_id) {
                         let content_ids = delegate.content.iter().filter_map(|summary| {
@@ -500,7 +503,10 @@ impl ContentListDelegate {
                             let path = child.path.clone();
                             let disabled_default = child.disabled_default;
                             let backend_handle = self.backend_handle.clone();
-                            move |checked, _, _| {
+                            move |checked, window, cx| {
+                                cx.stop_propagation();
+                                window.prevent_default();
+
                                 backend_handle.send(MessageToBackend::SetContentChildEnabled {
                                     id,
                                     content_id,
