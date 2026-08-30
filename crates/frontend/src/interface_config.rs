@@ -82,6 +82,8 @@ pub struct InterfaceConfig {
     pub skin_list_sort_desc: bool,
     #[serde(default = "schema::default_true", deserialize_with = "schema::try_deserialize")]
     pub skin_list_show_3d: bool,
+    #[serde(default = "default_zoom", deserialize_with = "schema::try_deserialize")]
+    pub player_model_zoom: i32,
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, strum::EnumIter)]
@@ -151,6 +153,10 @@ pub enum PreferredAddContentSource {
     File,
 }
 
+fn default_zoom() -> i32 {
+    100
+}
+
 fn default_modrinth_project_type() -> ModrinthProjectType {
     ModrinthProjectType::Mod
 }
@@ -194,6 +200,7 @@ impl Default for InterfaceConfig {
             collapse_capes_in_skins_page: false,
             skin_list_sort_desc: false,
             skin_list_show_3d: true,
+            player_model_zoom: default_zoom(),
         }
     }
 }

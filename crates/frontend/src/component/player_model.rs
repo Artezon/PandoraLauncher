@@ -3,10 +3,11 @@ use std::sync::Arc;
 use gpui::{App, AppContext, AvailableSpace, Bounds, Element, Entity, IntoElement, RenderImage, Size, Style, Task, px, size};
 use schema::{minecraft_profile::SkinVariant, unique_bytes::UniqueBytes};
 
+use crate::interface_config::InterfaceConfig;
+
 pub const DEFAULT_YAW: f64 = 22.5;
 pub const DEFAULT_PITCH: f64 = 10.5;
 pub const DEFAULT_ANIMATION: f64 = 1.0/16.0;
-pub const DEFAULT_ZOOM: f64 = 1.0;
 
 struct RenderedPlayerModel {
     image: Arc<RenderImage>,
@@ -28,7 +29,6 @@ pub struct PlayerModelState {
     pub yaw: f64,
     pub pitch: f64,
     pub animation: f64,
-    pub zoom: f64,
     rendered: Option<RenderedPlayerModel>,
     render_task: Option<Task<()>>,
 }
@@ -42,7 +42,6 @@ impl PlayerModelState {
             yaw: DEFAULT_YAW,
             pitch: DEFAULT_PITCH,
             animation: DEFAULT_ANIMATION,
-            zoom: DEFAULT_ZOOM,
             rendered: None,
             render_task: None,
         });
@@ -54,14 +53,14 @@ impl PlayerModelState {
         entity
     }
 
-    pub fn needs_rerender(&self, width: u32, height: u32) -> bool {
+    pub fn needs_rerender(&self, width: u32, height: u32, zoom: f64) -> bool {
         let Some(rendered) = &self.rendered else {
             return true;
         };
         return rendered.width != width || rendered.height != height || rendered.yaw != self.yaw
             || rendered.pitch != self.pitch || rendered.animation != self.animation
             || rendered.variant != self.variant || rendered.skin != self.skin || rendered.cape != self.cape
-            || rendered.zoom != self.zoom;
+            || rendered.zoom != zoom;
     }
 }
 
@@ -149,14 +148,14 @@ impl Element for PlayerModel {
         let window_scale = window.scale_factor();
         let image_height = (element_height * window_scale) as u32;
         let image_width = (element_width * window_scale) as u32;
+        let zoom = InterfaceConfig::get(cx).player_model_zoom.clamp(50, 400) as f64 / 100.0;
         self.state.update(cx, |state, cx| {
-            if state.render_task.is_none() && state.needs_rerender(image_width, image_height) {
+            if state.render_task.is_none() && state.needs_rerender(image_width, image_height, zoom) {
                 let skin = state.skin.clone();
                 let cape = state.cape.clone();
                 let yaw = state.yaw;
                 let pitch = state.pitch;
                 let animation = state.animation;
-                let zoom = state.zoom;
                 let variant = state.variant;
 
                 let (send, recv) = tokio::sync::oneshot::channel();
