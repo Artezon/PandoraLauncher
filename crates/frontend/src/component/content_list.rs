@@ -369,7 +369,8 @@ impl ContentListDelegate {
             .child(controls)
             .child(icon.size_16().min_w_16().min_h_16().grayscale(!summary.enabled))
             .when(!summary.enabled, |this| this.line_through())
-            .child(desc1)
+            .line_height(rems(1.2))
+            .child(desc1.pl_2())
             .when_some(desc2, |div, desc2| div.child(desc2))
             .border_1()
             .when(selected, |content| content.border_color(cx.theme().selection).bg(cx.theme().selection.alpha(0.2)));
@@ -522,7 +523,8 @@ impl ContentListDelegate {
                     .px_2()
             )
             .child(icon.size_16().min_w_16().min_h_16().grayscale(!visually_enabled))
-            .child(desc1.when(!visually_enabled, |this| this.line_through()))
+            .line_height(rems(1.2))
+            .child(desc1.pl_2().when(!visually_enabled, |this| this.line_through()))
             .when_some(desc2, |div, desc2| div.child(desc2.when(!visually_enabled, |this| this.line_through())));
 
         if child.disabled_third_party_downloads {
@@ -896,7 +898,7 @@ fn create_descriptions(name: Option<Arc<str>>, version: Arc<str>, authors: Arc<s
             .whitespace_nowrap()
             .overflow_x_hidden()
             .child(SharedString::from(filename))
-            .child(SharedString::from(version));
+            .child(div().text_color(secondary).child(SharedString::from(version)));
         return (description1, None);
     }
 
@@ -905,7 +907,7 @@ fn create_descriptions(name: Option<Arc<str>>, version: Arc<str>, authors: Arc<s
         .whitespace_nowrap()
         .overflow_x_hidden()
         .child(SharedString::from(name.clone().unwrap_or(filename.clone())))
-        .child(SharedString::from(version));
+        .child(div().text_color(secondary).child(SharedString::from(version)));
 
     let mut description2 = v_flex()
         .text_color(secondary)
