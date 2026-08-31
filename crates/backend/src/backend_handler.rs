@@ -25,47 +25,47 @@ impl BackendState {
                 tokio::task::spawn(async move {
                     let (result, keep_alive_handle) = match request {
                         bridge::meta::MetadataRequest::MinecraftVersionManifest => {
-                            let (result, handle) = meta.fetch_with_keepalive(&MinecraftVersionManifestMetadataItem, force_reload).await;
+                            let (result, handle) = meta.fetch_with_keepalive(MinecraftVersionManifestMetadataItem, force_reload).await;
                             (result.map(MetadataResult::MinecraftVersionManifest), handle)
                         },
                         bridge::meta::MetadataRequest::FabricLoaderManifest => {
-                            let (result, handle) = meta.fetch_with_keepalive(&FabricLoaderManifestMetadataItem, force_reload).await;
+                            let (result, handle) = meta.fetch_with_keepalive(FabricLoaderManifestMetadataItem, force_reload).await;
                             (result.map(MetadataResult::FabricLoaderManifest), handle)
                         },
                         bridge::meta::MetadataRequest::ForgeMavenManifest => {
-                            let (result, handle) = meta.fetch_with_keepalive(&ForgeInstallerMavenMetadataItem, force_reload).await;
+                            let (result, handle) = meta.fetch_with_keepalive(ForgeInstallerMavenMetadataItem, force_reload).await;
                             (result.map(MetadataResult::ForgeMavenManifest), handle)
                         },
                         bridge::meta::MetadataRequest::NeoforgeMavenManifest => {
-                            let (result, handle) = meta.fetch_with_keepalive(&NeoforgeInstallerMavenMetadataItem, force_reload).await;
+                            let (result, handle) = meta.fetch_with_keepalive(NeoforgeInstallerMavenMetadataItem, force_reload).await;
                             (result.map(MetadataResult::NeoforgeMavenManifest), handle)
                         },
                         bridge::meta::MetadataRequest::ModrinthSearch(ref search) => {
-                            let (result, handle) = meta.fetch_with_keepalive(&ModrinthSearchMetadataItem(search), force_reload).await;
+                            let (result, handle) = meta.fetch_with_keepalive(ModrinthSearchMetadataItem(search), force_reload).await;
                             (result.map(MetadataResult::ModrinthSearchResult), handle)
                         },
                         bridge::meta::MetadataRequest::ModrinthProjectVersions(ref project_versions) => {
-                            let (result, handle) = meta.fetch_with_keepalive(&ModrinthProjectVersionsMetadataItem(project_versions), force_reload).await;
+                            let (result, handle) = meta.fetch_with_keepalive(ModrinthProjectVersionsMetadataItem(project_versions), force_reload).await;
                             (result.map(MetadataResult::ModrinthProjectVersionsResult), handle)
                         },
                         bridge::meta::MetadataRequest::ModrinthProject(ref project) => {
-                            let (result, handle) = meta.fetch_with_keepalive(&ModrinthProjectMetadataItem(project), force_reload).await;
+                            let (result, handle) = meta.fetch_with_keepalive(ModrinthProjectMetadataItem(project), force_reload).await;
                             (result.map(MetadataResult::ModrinthProjectResult), handle)
                         },
                         bridge::meta::MetadataRequest::ModrinthChangelog(ref request) => {
-                            let (result, handle) = meta.fetch_with_keepalive(&ModrinthChangelogMetadataItem(request), force_reload).await;
+                            let (result, handle) = meta.fetch_with_keepalive(ModrinthChangelogMetadataItem(request), force_reload).await;
                             (result.map(MetadataResult::ModrinthChangelogResult), handle)
                         },
                         bridge::meta::MetadataRequest::CurseforgeSearch(ref search) => {
-                            let (result, handle) = meta.fetch_with_keepalive(&CurseforgeSearchMetadataItem(search), force_reload).await;
+                            let (result, handle) = meta.fetch_with_keepalive(CurseforgeSearchMetadataItem(search), force_reload).await;
                             (result.map(MetadataResult::CurseforgeSearchResult), handle)
                         },
                         bridge::meta::MetadataRequest::CurseforgeGetModFiles(ref request) => {
-                            let (result, handle) = meta.fetch_with_keepalive(&CurseforgeGetModFilesMetadataItem(request), force_reload).await;
+                            let (result, handle) = meta.fetch_with_keepalive(CurseforgeGetModFilesMetadataItem(request), force_reload).await;
                             (result.map(MetadataResult::CurseforgeGetModFilesResult), handle)
                         },
                         bridge::meta::MetadataRequest::CurseforgeChangelog(ref request) => {
-                            let (result, handle) = meta.fetch_with_keepalive(&CurseforgeChangelogMetadataItem(request), force_reload).await;
+                            let (result, handle) = meta.fetch_with_keepalive(CurseforgeChangelogMetadataItem(request), force_reload).await;
                             (result.map(MetadataResult::CurseforgeChangelogResult), handle)
                         },
                     };
@@ -461,15 +461,6 @@ impl BackendState {
                     this.send.send(MessageToFrontend::Refresh);
                 });
             },
-            MessageToBackend::StartManualCurseforgeDownloads { request } => {
-                self.start_manual_curseforge_downloads(request).await;
-            },
-            MessageToBackend::CheckManualCurseforgeDownloads { session_id } => {
-                self.check_manual_curseforge_downloads(session_id).await;
-            },
-            MessageToBackend::CancelManualCurseforgeDownloads { session_id } => {
-                self.cancel_manual_curseforge_downloads(session_id).await;
-            },
             MessageToBackend::DownloadAllMetadata => {
                 self.download_all_metadata().await;
             },
@@ -627,7 +618,7 @@ impl BackendState {
                                         for &version_types in update_channel.modrinth_version_types_with_fallback().iter() {
                                             let fetch_result = match &summary.content_summary.extra {
                                                 ContentType::ModrinthModpack { .. } => {
-                                                    meta.fetch(&ModrinthV3VersionUpdateMetadataItem {
+                                                    meta.fetch(ModrinthV3VersionUpdateMetadataItem {
                                                         sha1: sha1.clone(),
                                                         params: VersionV3UpdateParameters {
                                                             loaders: ["mrpack".into()].into(),
@@ -641,7 +632,7 @@ impl BackendState {
                                                 },
                                                 extra => {
                                                     let loaders = extra.modrinth_loaders(instance_modrinth_loader);
-                                                    meta.fetch(&ModrinthVersionUpdateMetadataItem {
+                                                    meta.fetch(ModrinthVersionUpdateMetadataItem {
                                                         sha1: sha1.clone(),
                                                         params: VersionUpdateParameters {
                                                             loaders,
@@ -706,7 +697,7 @@ impl BackendState {
 
                                     let result = async {
                                         for &release_types in update_channel.curseforge_release_types_with_fallback().iter() {
-                                            let fetch_result = meta.fetch(&CurseforgeGetModFilesMetadataItem(
+                                            let fetch_result = meta.fetch(CurseforgeGetModFilesMetadataItem(
                                                 &CurseforgeGetModFilesRequest {
                                                     mod_id: project_id,
                                                     game_version: Some(version),
@@ -2235,18 +2226,18 @@ impl BackendState {
     }
 
     pub async fn download_all_metadata(&self) {
-        let Ok(versions) = self.meta.fetch(&MinecraftVersionManifestMetadataItem).await else {
+        let Ok(versions) = self.meta.fetch(MinecraftVersionManifestMetadataItem).await else {
             panic!("Unable to get Minecraft version manifest");
         };
 
         for link in &versions.versions {
-            let Ok(version_info) = self.meta.fetch(&MinecraftVersionMetadataItem(link)).await else {
+            let Ok(version_info) = self.meta.fetch(MinecraftVersionMetadataItem(link)).await else {
                 panic!("Unable to get load version: {:?}", link.id);
             };
 
             let asset_index = format!("{}", version_info.assets);
 
-            let Ok(_) = self.meta.fetch(&AssetsIndexMetadataItem {
+            let Ok(_) = self.meta.fetch(AssetsIndexMetadataItem {
                 url: version_info.asset_index.url,
                 cache: self.directories.assets_index_dir.join(format!("{}.json", &asset_index)).into(),
                 hash: version_info.asset_index.sha1,
@@ -2278,7 +2269,7 @@ impl BackendState {
             }
         }
 
-        let Ok(runtimes) = self.meta.fetch(&MojangJavaRuntimesMetadataItem).await else {
+        let Ok(runtimes) = self.meta.fetch(MojangJavaRuntimesMetadataItem).await else {
             panic!("Unable to get java runtimes manifest");
         };
 
@@ -2295,7 +2286,7 @@ impl BackendState {
                 };
 
                 for runtime_component in components {
-                    let Ok(manifest) = self.meta.fetch(&MojangJavaRuntimeComponentMetadataItem {
+                    let Ok(manifest) = self.meta.fetch(MojangJavaRuntimeComponentMetadataItem {
                         url: runtime_component.manifest.url,
                         cache: runtime_component_dir.join("manifest.json").into(),
                         hash: runtime_component.manifest.sha1,

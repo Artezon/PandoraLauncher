@@ -14,7 +14,7 @@ use uuid::Uuid;
 use crate::{
     account::Account, game_output::GameOutputLogLevel, import::{ImportFromOtherLauncherJob, OtherLauncher}, install::ContentInstall, instance::{
         ContentFolder, InstanceContentID, InstanceContentSummary, InstanceID, InstancePlaytime, InstanceServerSummary, InstanceStatus, InstanceWorldSummary
-    }, manual_download::{ManualCurseforgeDownloadRequest, ManualCurseforgeDownloadStart}, meta::{MetadataRequest, MetadataResult}, modal_action::ModalAction, notify_signal::KeepAliveNotifySignalHandle,
+    }, manual_download::{ManualCurseforgeDownloadRequest}, meta::{MetadataRequest, MetadataResult}, modal_action::ModalAction, notify_signal::KeepAliveNotifySignalHandle,
 };
 
 #[derive(Debug)]
@@ -202,15 +202,6 @@ pub enum MessageToBackend {
     InstallContent {
         content: ContentInstall,
         modal_action: ModalAction,
-    },
-    StartManualCurseforgeDownloads {
-        request: ManualCurseforgeDownloadStart,
-    },
-    CheckManualCurseforgeDownloads {
-        session_id: Uuid,
-    },
-    CancelManualCurseforgeDownloads {
-        session_id: Uuid,
     },
     CreateInstanceFromFile {
         file: PathBuf,

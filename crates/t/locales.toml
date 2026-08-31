@@ -1211,6 +1211,10 @@ sv = "OK"
 ru = "ОК"
 fr = "OK"
 it = "OK"
+[common.cont]
+en = "Continue"
+[common.skip]
+en = "Skip"
 [common.cannot_be_undone]
 en = "This cannot be undone"
 hu = "Ezt nem lehet visszacsinálni"
@@ -3017,23 +3021,17 @@ it = "L'autore del mod ha bloccato i download dai launcher di terze parti"
 [instance.content.manual_curseforge_downloads.title]
 en = "Manual CurseForge downloads"
 [instance.content.manual_curseforge_downloads.description]
-en = "Some mod authors require their files to be downloaded through CurseForge. Pandora will verify each completed download automatically."
+en = "Some mod authors require their files to be downloaded through CurseForge. Pandora will scan your downloads directory and automatically copy the downloaded file."
 [instance.content.manual_curseforge_downloads.downloads_folder]
 en = "Downloads folder: ${path: &str}"
 [instance.content.manual_curseforge_downloads.choose_folder]
 en = "Choose downloads folder"
-[instance.content.manual_curseforge_downloads.change_folder]
-en = "Change folder"
 [instance.content.manual_curseforge_downloads.downloaded]
-en = "Downloaded"
+en = "Downloaded ✓"
 [instance.content.manual_curseforge_downloads.open]
 en = "Open"
 [instance.content.manual_curseforge_downloads.open_all]
 en = "Open all"
-[instance.content.manual_curseforge_downloads.check_downloads]
-en = "Check downloads"
-[instance.content.manual_curseforge_downloads.watching]
-en = "Watching…"
 [instance.content.install.loading_files]
 en = "Loading files..."
 pl = "Wczytywanie plików..."

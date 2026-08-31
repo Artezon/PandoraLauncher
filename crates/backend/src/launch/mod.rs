@@ -269,7 +269,7 @@ impl Launcher {
             Loader::Vanilla => {
                 launch_tracker.add_total(1);
 
-                let versions = self.meta.fetch(&MinecraftVersionManifestMetadataItem).await?;
+                let versions = self.meta.fetch(MinecraftVersionManifestMetadataItem).await?;
 
                 launch_tracker.add_count(1);
 
@@ -277,7 +277,7 @@ impl Launcher {
                     return Err(LaunchError::CantFindVersion(instance_info.minecraft_version.as_str()));
                 };
 
-                Ok((self.meta.fetch(&MinecraftVersionMetadataItem(version)).await?, AddVanillaJar::Yes))
+                Ok((self.meta.fetch(MinecraftVersionMetadataItem(version)).await?, AddVanillaJar::Yes))
             },
             Loader::Fabric => {
                 launch_tracker.add_total(4);
@@ -291,7 +291,7 @@ impl Launcher {
                         let loader_version = if let Some(preferred_version) = instance_info.preferred_loader_version {
                             Ok(preferred_version)
                         } else {
-                            let manifest = self.meta.fetch(&FabricLoaderManifestMetadataItem).map_err(LaunchError::from).await?;
+                            let manifest = self.meta.fetch(FabricLoaderManifestMetadataItem).map_err(LaunchError::from).await?;
 
                             let mut latest_loader_version = manifest.0.iter().find(|v| v.stable);
                             if latest_loader_version.is_none() {
@@ -306,7 +306,7 @@ impl Launcher {
 
                         launch_tracker.add_count(1);
 
-                        let value = meta.fetch(&FabricLaunchMetadataItem {
+                        let value = meta.fetch(FabricLaunchMetadataItem {
                             minecraft_version,
                             loader_version,
                         }).await?;
@@ -323,7 +323,7 @@ impl Launcher {
                     let minecraft_version = instance_info.minecraft_version;
 
                     async move {
-                        let versions = meta.fetch(&MinecraftVersionManifestMetadataItem).await.map_err(LaunchError::from)?;
+                        let versions = meta.fetch(MinecraftVersionManifestMetadataItem).await.map_err(LaunchError::from)?;
 
                         launch_tracker.add_count(1);
 
@@ -331,7 +331,7 @@ impl Launcher {
                             return Err(LaunchError::CantFindVersion(minecraft_version.as_str()));
                         };
 
-                        let value = meta.fetch(&MinecraftVersionMetadataItem(version)).await?;
+                        let value = meta.fetch(MinecraftVersionMetadataItem(version)).await?;
 
                         launch_tracker.add_count(1);
 
@@ -414,8 +414,8 @@ impl Launcher {
 
                 // Download Minecraft manifest and neoforge installer maven
                 let (minecraft_versions, manifest) = futures::future::try_join(
-                    self.meta.fetch(&MinecraftVersionManifestMetadataItem),
-                    self.meta.fetch(&ForgeInstallerMavenMetadataItem)
+                    self.meta.fetch(MinecraftVersionManifestMetadataItem),
+                    self.meta.fetch(ForgeInstallerMavenMetadataItem)
                 ).await?;
 
                 let Some(loader_version) = instance_info.determine_forge_loader_version(&manifest) else {
@@ -439,8 +439,8 @@ impl Launcher {
 
                 // Download Minecraft manifest and neoforge installer maven
                 let (minecraft_versions, manifest) = futures::future::try_join(
-                    self.meta.fetch(&MinecraftVersionManifestMetadataItem),
-                    self.meta.fetch(&NeoforgeInstallerMavenMetadataItem)
+                    self.meta.fetch(MinecraftVersionManifestMetadataItem),
+                    self.meta.fetch(NeoforgeInstallerMavenMetadataItem)
                 ).await?;
 
                 let Some(loader_version) = instance_info.determine_neoforge_loader_version(&manifest) else {
@@ -484,7 +484,7 @@ impl Launcher {
         // Download base Minecraft version and neoforge installer hash
         let installer_hash_url = installer_hash_url.replace("{0}", &loader_version);
         let (base_version, installer_sha1) = futures::future::join(
-            self.meta.fetch(&MinecraftVersionMetadataItem(version_link)),
+            self.meta.fetch(MinecraftVersionMetadataItem(version_link)),
             Self::download_sha1(http_client, &installer_hash_url)
         ).await;
         let base_version = base_version?;
@@ -966,7 +966,7 @@ impl Launcher {
             "jre-legacy".into()
         };
 
-        let runtimes = meta.fetch(&MojangJavaRuntimesMetadataItem).await?;
+        let runtimes = meta.fetch(MojangJavaRuntimesMetadataItem).await?;
 
         let mut runtime_platform = runtimes.platforms.get(&platform).ok_or(LoadJavaRuntimeError::UnknownPlatform)?;
         let mut runtime_components = runtime_platform.components.get(&jre_component);
@@ -999,7 +999,7 @@ impl Launcher {
 
         let fresh_install = !runtime_component_dir.exists();
 
-        let runtime = meta.fetch(&MojangJavaRuntimeComponentMetadataItem {
+        let runtime = meta.fetch(MojangJavaRuntimeComponentMetadataItem {
             url: runtime_component.manifest.url,
             cache: runtime_component_dir.join("manifest.json").into(),
             hash: runtime_component.manifest.sha1,
@@ -1033,7 +1033,7 @@ impl Launcher {
     ) -> Result<String, LoadAssetObjectsError> {
         let asset_index = format!("{}", version_info.assets);
 
-        let assets_index = meta.fetch(&AssetsIndexMetadataItem {
+        let assets_index = meta.fetch(AssetsIndexMetadataItem {
             url: version_info.asset_index.url,
             cache: self.directories.assets_index_dir.join(format!("{}.json", &asset_index)).into(),
             hash: version_info.asset_index.sha1,

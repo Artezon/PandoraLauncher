@@ -6,7 +6,7 @@ use reqwest::RequestBuilder;
 use schema::{
     assets_index::AssetsIndex,
     curseforge::{
-        CURSEFORGE_API_KEY, CURSEFORGE_SEARCH_URL, CurseforgeChangelogRequest, CurseforgeChangelogResult, CurseforgeFingerprintRequest, CurseforgeFingerprintResponse, CurseforgeGetFilesRequest, CurseforgeGetModFilesRequest, CurseforgeGetModFilesResult, CurseforgeSearchRequest, CurseforgeSearchResult, MINECRAFT_GAME_ID
+        CURSEFORGE_API_KEY, CURSEFORGE_SEARCH_URL, CurseforgeChangelogRequest, CurseforgeChangelogResult, CurseforgeFingerprintRequest, CurseforgeFingerprintResponse, CurseforgeGetFilesRequest, CurseforgeGetModFilesRequest, CurseforgeGetModFilesResult, CurseforgeProject, CurseforgeProjectResponse, CurseforgeSearchRequest, CurseforgeSearchResult, MINECRAFT_GAME_ID
     },
     fabric_launch::FabricLaunch,
     fabric_loader_manifest::{FABRIC_LOADER_MANIFEST_URL, FabricLoaderManifest},
@@ -746,5 +746,31 @@ impl<'a> MetadataItem for CurseforgeChangelogMetadataItem<'a> {
 
     fn deserialize(bytes: &[u8]) -> Result<Self::T, MetaLoadError> {
         Ok(serde_json::from_slice(bytes)?)
+    }
+}
+
+#[derive(Debug)]
+pub struct CurseforgeProjectItem {
+    pub project_id: u32,
+}
+
+impl<'a> MetadataItem for CurseforgeProjectItem {
+    type T = CurseforgeProject;
+
+    fn request(&self, client: &reqwest::Client) -> RequestBuilder {
+        client.get(format!("https://api.curseforge.com/v1/mods/{}", self.project_id))
+            .header("x-api-key", CURSEFORGE_API_KEY)
+    }
+
+    fn expires(&self) -> bool {
+        false
+    }
+
+    fn state(&self, states: &mut MetadataManagerStates) -> MetaStateWrapper<Self::T> {
+        states.curseforge_projects.entry(self.project_id).or_default().clone()
+    }
+
+    fn deserialize(bytes: &[u8]) -> Result<Self::T, MetaLoadError> {
+        Ok(serde_json::from_slice::<CurseforgeProjectResponse>(bytes)?.data)
     }
 }

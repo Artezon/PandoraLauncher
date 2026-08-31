@@ -8,9 +8,7 @@ use reqwest::StatusCode;
 use schema::{
     assets_index::AssetsIndex,
     curseforge::{
-        CurseforgeChangelogRequest, CurseforgeChangelogResult, CurseforgeFingerprintRequest, CurseforgeFingerprintResponse, CurseforgeGetFilesRequest,
-        CurseforgeGetModFilesRequest, CurseforgeGetModFilesResult, CurseforgeSearchRequest,
-        CurseforgeSearchResult
+        CurseforgeChangelogRequest, CurseforgeChangelogResult, CurseforgeFingerprintRequest, CurseforgeFingerprintResponse, CurseforgeGetFilesRequest, CurseforgeGetModFilesRequest, CurseforgeGetModFilesResult, CurseforgeProject, CurseforgeSearchRequest, CurseforgeSearchResult
     },
     fabric_launch::FabricLaunch, fabric_loader_manifest::FabricLoaderManifest,
     forge::{ForgeMavenManifest, NeoforgeMavenManifest}, java_runtime_component::JavaRuntimeComponentManifest,
@@ -87,6 +85,7 @@ pub struct MetadataManagerStates {
     pub(super) curseforge_get_files: HashMap<CurseforgeGetFilesRequest, MetaStateWrapper<CurseforgeGetModFilesResult>>,
     pub(super) curseforge_changelogs: HashMap<CurseforgeChangelogRequest, MetaStateWrapper<CurseforgeChangelogResult>>,
     pub(super) curseforge_fingerprints: HashMap<CurseforgeFingerprintRequest, MetaStateWrapper<CurseforgeFingerprintResponse>>,
+    pub(super) curseforge_projects: HashMap<u32, MetaStateWrapper<CurseforgeProject>>,
 }
 
 #[derive(Clone, Copy, enum_map::Enum)]
@@ -273,7 +272,7 @@ impl MetadataManager {
         handle
     }
 
-    pub fn preload<I: MetadataItem>(&self, item: &I) {
+    pub fn preload<I: MetadataItem>(&self, item: I) {
         let wrapper = item.state(&mut *self.states.lock());
         let mut wrapper = wrapper.lock();
 
@@ -283,17 +282,17 @@ impl MetadataManager {
             }
 
             let cache_file = item.cache_file(self);
-            wrapper.load_state = Self::inner_start_loading(item, cache_file, &self.http_client);
+            wrapper.load_state = Self::inner_start_loading(&item, cache_file, &self.http_client);
         }
     }
 
-    pub async fn fetch<I: MetadataItem>(&self, item: &I) -> Result<Arc<<I as MetadataItem>::T>, MetaLoadError> {
+    pub async fn fetch<I: MetadataItem>(&self, item: I) -> Result<Arc<<I as MetadataItem>::T>, MetaLoadError> {
         self.fetch_with_keepalive(item, false).await.0
     }
 
-    pub async fn fetch_with_keepalive<I: MetadataItem>(&self, item: &I, mut force_reload: bool) -> (Result<Arc<<I as MetadataItem>::T>, MetaLoadError>, Option<KeepAliveNotifySignalHandle>) {
+    pub async fn fetch_with_keepalive<I: MetadataItem>(&self, item: I, mut force_reload: bool) -> (Result<Arc<<I as MetadataItem>::T>, MetaLoadError>, Option<KeepAliveNotifySignalHandle>) {
         loop {
-            if let Some(result) = self.fetch_with_keepalive_inner(item, force_reload).await {
+            if let Some(result) = self.fetch_with_keepalive_inner(&item, force_reload).await {
                 return result;
             } else {
                 force_reload = true;
