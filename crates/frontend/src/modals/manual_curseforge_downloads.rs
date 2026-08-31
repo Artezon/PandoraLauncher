@@ -190,7 +190,7 @@ impl ManualCurseforgeDownloadsDialog {
             cx.processor(move |this, range: std::ops::Range<usize>, _, cx| {
                 files[range.clone()].iter().map(|file| {
                     let completed = this.completed.contains(&file.sha1);
-                    let trailing = if completed || file.name.contains("Towers") {
+                    let trailing = if completed {
                         div().flex_shrink_0().text_color(cx.theme().success)
                             .child(t::instance::content::manual_curseforge_downloads::downloaded()).into_any_element()
                     } else {

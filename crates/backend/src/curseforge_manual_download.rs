@@ -117,8 +117,6 @@ impl ManualCurseforgeDownloadSession {
         let (download_dir_recv, frontend_alive) = {
             let mut session_write = self.0.write();
             if let Some(existing) = &mut *session_write {
-                log::warn!("Adding to existing");
-
                 files.retain(|file| existing.sent_hashes.contains(&file.sha1));
 
                 if files.is_empty() {
@@ -243,15 +241,9 @@ impl ManualCurseforgeDownloadSession {
         };
 
         tokio::select! {
-            _ = frontend_alive.await_notification() => {
-                log::warn!("Stopping backend session because frontend died");
-            },
-            _ = stopped_notify.notified() => {
-                log::warn!("Stopping backend session because remaining files are empty");
-            }
+            _ = frontend_alive.await_notification() => {},
+            _ = stopped_notify.notified() => {}
         }
-
-        log::warn!("Wait until finished returned!");
 
         let mut lock = self.0.write();
         let Some(inner) = &mut *lock else {
