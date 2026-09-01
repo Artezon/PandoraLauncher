@@ -259,27 +259,20 @@ pub fn change_mod_version(
     window: &mut Window,
     cx: &mut App,
 ) {
-    updating.lock().insert(hash);
-
     let modal_action = ModalAction::default();
+
+    updating.lock().insert(hash);
+    modal_action.add_finish_effect({
+        let updating = updating.clone();
+        move || {
+            updating.lock().remove(&hash);
+        }
+    });
 
     backend_handle.send(MessageToBackend::InstallContent {
         content: content_install.clone(),
         modal_action: modal_action.clone(),
     });
-
-    let notify = modal_action.get_notify();
-    let updating = updating.clone();
-    let modal_action_clone = modal_action.clone();
-    window.spawn(cx, async move |_| {
-        loop {
-            notify.notified().await;
-            if modal_action_clone.get_finished_at().is_some() {
-                break;
-            }
-        }
-        updating.lock().remove(&hash);
-    }).detach();
 
     modals::generic::show_notification(window, cx, t::instance::content::install::error().into(), modal_action);
 }
@@ -310,28 +303,21 @@ pub fn update_single_mod(
     window: &mut Window,
     cx: &mut App,
 ) {
-    updating.lock().insert(hash);
-
     let modal_action = ModalAction::default();
+
+    updating.lock().insert(hash);
+    modal_action.add_finish_effect({
+        let updating = updating.clone();
+        move || {
+            updating.lock().remove(&hash);
+        }
+    });
 
     backend_handle.send(MessageToBackend::UpdateContent {
         instance,
         content_id: mod_id,
         modal_action: modal_action.clone(),
     });
-
-    let notify = modal_action.get_notify();
-    let updating = updating.clone();
-    let modal_action_clone = modal_action.clone();
-    window.spawn(cx, async move |_| {
-        loop {
-            notify.notified().await;
-            if modal_action_clone.get_finished_at().is_some() {
-                break;
-            }
-        }
-        updating.lock().remove(&hash);
-    }).detach();
 
     modals::generic::show_notification(window, cx, t::instance::content::update::download::error().into(), modal_action);
 }
