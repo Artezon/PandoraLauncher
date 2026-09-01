@@ -1,5 +1,7 @@
 use std::{path::Path, sync::{Arc, atomic::AtomicBool}};
 
+use parking_lot::Mutex;
+
 use bridge::{
     handle::BackendHandle,
     install::ContentInstall,
@@ -9,6 +11,7 @@ use bridge::{
 };
 use gpui::{prelude::*, *};
 use gpui_component::{Root, Theme, WindowExt, scroll::ScrollableElement, v_flex};
+use rustc_hash::FxHashSet;
 
 use crate::{Backwards, CloseWindow, Forwards, MAIN_FONT, OpenSettings, entity::DataEntities, game_output::{GameOutput, GameOutputRoot}, interface_config::{InterfaceConfig, LiveGameOutputDisplay}, modals, pages::instance::instance_page::InstanceSubpageType, ui::{LauncherUI, PageType}};
 
@@ -248,6 +251,39 @@ pub fn start_install(
     modals::generic::show_notification(window, cx, t::instance::content::install::error().into(), modal_action);
 }
 
+pub fn change_mod_version(
+    content_install: ContentInstall,
+    hash: u64,
+    updating: &Arc<Mutex<FxHashSet<u64>>>,
+    backend_handle: &BackendHandle,
+    window: &mut Window,
+    cx: &mut App,
+) {
+    updating.lock().insert(hash);
+
+    let modal_action = ModalAction::default();
+
+    backend_handle.send(MessageToBackend::InstallContent {
+        content: content_install.clone(),
+        modal_action: modal_action.clone(),
+    });
+
+    let notify = modal_action.get_notify();
+    let updating = updating.clone();
+    let modal_action_clone = modal_action.clone();
+    window.spawn(cx, async move |_| {
+        loop {
+            notify.notified().await;
+            if modal_action_clone.get_finished_at().is_some() {
+                break;
+            }
+        }
+        updating.lock().remove(&hash);
+    }).detach();
+
+    modals::generic::show_notification(window, cx, t::instance::content::install::error().into(), modal_action);
+}
+
 pub fn start_update_check(
     instance: InstanceID,
     backend_handle: &BackendHandle,
@@ -268,10 +304,14 @@ pub fn start_update_check(
 pub fn update_single_mod(
     instance: InstanceID,
     mod_id: InstanceContentID,
+    hash: u64,
+    updating: &Arc<Mutex<FxHashSet<u64>>>,
     backend_handle: &BackendHandle,
     window: &mut Window,
     cx: &mut App,
 ) {
+    updating.lock().insert(hash);
+
     let modal_action = ModalAction::default();
 
     backend_handle.send(MessageToBackend::UpdateContent {
@@ -279,6 +319,19 @@ pub fn update_single_mod(
         content_id: mod_id,
         modal_action: modal_action.clone(),
     });
+
+    let notify = modal_action.get_notify();
+    let updating = updating.clone();
+    let modal_action_clone = modal_action.clone();
+    window.spawn(cx, async move |_| {
+        loop {
+            notify.notified().await;
+            if modal_action_clone.get_finished_at().is_some() {
+                break;
+            }
+        }
+        updating.lock().remove(&hash);
+    }).detach();
 
     modals::generic::show_notification(window, cx, t::instance::content::update::download::error().into(), modal_action);
 }
