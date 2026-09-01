@@ -413,43 +413,38 @@ impl Render for ModrinthProjectPage {
                 })
                 .into_any_element();
 
-            let body_el: AnyElement = match (active_tab, gallery) {
-                (1, Some(images)) => {
-                    v_flex()
-                        .mt_2().pt_2()
-                        .child(h_flex()
-                            .flex_wrap()
-                            .gap_3()
-                            .children(images.iter().enumerate().map(|(idx, img)| {
-                                v_flex().rounded_lg().h_80()
-                                    .child(gpui::img(SharedUri::from(&img.url))
-                                        .w_full()
-                                        .h_72()
-                                        .cursor_pointer()
-                                        .rounded_t_lg()
-                                        .id(("gallery_img", idx))
-                                        .on_click({
-                                            let url = img.url.clone();
-                                            move |_, _, cx| { cx.open_url(&url); }
-                                        }))
-                                    .child(v_flex().p_1().max_w_full().min_w_0()
-                                        .child(div().text_sm().child(SharedString::new(img.title.as_deref().unwrap_or_default())))
-                                    )
-                            })))
-                        .into_any_element()
-                }
-                _ => {
-                    if let Some(body) = &project.body && !body.is_empty() {
-                        v_flex()
-                            .child(TextView::markdown("project_description", body.to_string()).gap_4())
-                            .into_any_element()
-                    } else {
-                        v_flex()
-                            .mt_2().pt_2()
-                            .child(div().text_sm().text_color(cx.theme().muted_foreground).child(t::instance::content::no_description()))
-                            .into_any_element()
-                    }
-                }
+            let body_el: AnyElement = if active_tab == 1 {
+                v_flex()
+                    .mt_2().pt_2()
+                    .child(h_flex()
+                        .flex_wrap()
+                        .gap_3()
+                        .children(gallery.into_iter().flatten().enumerate().map(|(idx, img)| {
+                            v_flex().rounded_lg().h_80()
+                                .child(gpui::img(SharedUri::from(&img.url))
+                                    .w_full()
+                                    .h_72()
+                                    .cursor_pointer()
+                                    .rounded_t_lg()
+                                    .id(("gallery_img", idx))
+                                    .on_click({
+                                        let url = img.url.clone();
+                                        move |_, _, cx| { cx.open_url(&url); }
+                                    }))
+                                .child(v_flex().p_1().max_w_full().min_w_0()
+                                    .child(div().text_sm().child(SharedString::new(img.title.as_deref().unwrap_or_default())))
+                                )
+                        })))
+                    .into_any_element()
+            } else if let Some(body) = &project.body && !body.is_empty() {
+                v_flex()
+                    .child(TextView::markdown("project_description", body.to_string()).gap_4())
+                    .into_any_element()
+            } else {
+                v_flex()
+                    .mt_2().pt_2()
+                    .child(div().text_sm().text_color(cx.theme().muted_foreground).child(t::instance::content::no_description()))
+                    .into_any_element()
             };
 
             v_flex().p_4().gap_3().w_full()
