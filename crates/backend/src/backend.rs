@@ -14,7 +14,7 @@ use bridge::{
 };
 use image::ImageFormat;
 use indexmap::IndexSet;
-use parking_lot::RwLock;
+use parking_lot::{Mutex, RwLock};
 use reqwest::{StatusCode, redirect::Policy};
 use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 use schema::{auxiliary::AuxiliaryContentMeta, backend_config::{BackendConfig, ProxyConfig, SyncTargets}, content::{ContentInstallReason, ContentSource}, curseforge::{CachedCurseforgeFileInfo, CurseforgeGetFilesRequest}, instance::InstanceConfiguration, loader::Loader, minecraft_profile::MinecraftProfileResponse};
@@ -135,7 +135,7 @@ pub fn start(runtime: tokio::runtime::Runtime, launcher_dir: PathBuf, send: Fron
         launcher: Launcher::new(meta, directories, send),
         mod_metadata_manager: Arc::new(mod_metadata_manager),
         account_info: Arc::new(RwLock::new(account_info)),
-        config: Arc::new(RwLock::new(config)),
+        config: Arc::new(Mutex::new(config)),
         secret_storage: Arc::new(OnceCell::new()),
         login_semaphore: Arc::new(Semaphore::new(1)),
         cached_minecraft_profiles: Default::default(),
@@ -198,7 +198,7 @@ pub struct BackendState {
     pub launcher: Launcher,
     pub mod_metadata_manager: Arc<ModMetadataManager>,
     pub account_info: Arc<RwLock<Persistent<BackendAccountInfo>>>,
-    pub config: Arc<RwLock<Persistent<BackendConfig>>>,
+    pub config: Arc<Mutex<Persistent<BackendConfig>>>,
     pub secret_storage: Arc<OnceCell<Result<PlatformSecretStorage, SecretStorageError>>>,
     pub login_semaphore: Arc<Semaphore>,
     pub cached_minecraft_profiles: Arc<RwLock<FxHashMap<Uuid, CachedMinecraftProfile>>>,
@@ -733,7 +733,7 @@ impl BackendState {
         if disable {
             crate::syncing::apply_to_instance(&SyncTargets::default(), &self.directories, path, &mut instances);
         } else {
-            crate::syncing::apply_to_instance(&self.config.write().get().sync_targets, &self.directories, path, &mut instances);
+            crate::syncing::apply_to_instance(&self.config.lock().get().sync_targets, &self.directories, path, &mut instances);
         }
     }
 

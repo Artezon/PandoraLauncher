@@ -2,7 +2,7 @@ use std::{borrow::Cow, io::{BufRead, Read}, sync::{Arc, atomic::Ordering}, time:
 
 use auth::{credentials::AccountCredentials, models::MinecraftAccessToken, secret::PlatformSecretStorage};
 use bridge::{
-    install::{ContentDownload, ContentInstall, ContentInstallFile, ContentInstallPath, InstallTarget}, instance::{ContentFolder, ContentSummary, ContentType, InstanceID}, keep_alive::KeepAlive, message::{AccountCapesResult, AccountSkinResult, BackendConfigWithPassword, EmbeddedOrRaw, GameOutputMsg, LogFiles, MessageToBackend, MessageToFrontend, QuickPlayLaunch}, meta::MetadataResult, modal_action::{ModalAction, ModalActionVisitUrl, ProgressTrackerFinishType}, serial::AtomicOptionSerial
+    install::{ContentDownload, ContentInstall, ContentInstallFile, ContentInstallPath, InstallTarget}, instance::{ContentFolder, ContentSummary, ContentType, InstanceID}, keep_alive::KeepAlive, message::{AccountCapesResult, AccountSkinResult, EmbeddedOrRaw, GameOutputMsg, LogFiles, MessageToBackend, MessageToFrontend, QuickPlayLaunch}, meta::MetadataResult, modal_action::{ModalAction, ModalActionVisitUrl, ProgressTrackerFinishType}, serial::AtomicOptionSerial
 };
 use futures::TryFutureExt;
 use schema::{auxiliary::AuxiliaryContentMeta, content::{ContentInstallReason, ContentSource}, curseforge::CurseforgeGetModFilesRequest, loader::Loader, minecraft_profile::{MinecraftProfileResponse, SkinVariant}, modrinth::ModrinthLoader, version::{LaunchArgument, LaunchArgumentValue}};
@@ -1126,7 +1126,7 @@ impl BackendState {
                 _ = channel.send(result);
             },
             MessageToBackend::GetSyncState { channel } => {
-                let result = crate::syncing::get_sync_state(&self.config.write().get().sync_targets, &mut *self.instance_state.write(), &self.directories);
+                let result = crate::syncing::get_sync_state(&self.config.lock().get().sync_targets, &mut *self.instance_state.write(), &self.directories);
 
                 match result {
                     Ok(state) => {
@@ -1138,7 +1138,7 @@ impl BackendState {
                 }
             },
             MessageToBackend::SetSyncing { target, is_file, value } => {
-                let mut write = self.config.write();
+                let mut write = self.config.lock();
 
                 let result = if value {
                     crate::syncing::enable_all(&target, is_file, &mut *self.instance_state.write(), &self.directories)
@@ -1175,29 +1175,7 @@ impl BackendState {
                 });
             },
             MessageToBackend::GetBackendConfiguration { channel } => {
-                let configuration = self.config.write().get().clone();
-                let proxy_password = if configuration.proxy.enabled && configuration.proxy.auth_enabled {
-                    match PlatformSecretStorage::new().await {
-                        Ok(storage) => match storage.read_proxy_password().await {
-                            Ok(password) => password,
-                            Err(e) => {
-                                log::warn!("Failed to read proxy password from keyring: {:?}", e);
-                                None
-                            }
-                        },
-                        Err(e) => {
-                            log::warn!("Failed to create secret storage: {:?}", e);
-                            None
-                        }
-                    }
-                } else {
-                    None
-                };
-
-                _ = channel.send(BackendConfigWithPassword {
-                    config: configuration,
-                    proxy_password,
-                });
+                _ = channel.send(self.config.lock().get().clone());
             },
             MessageToBackend::CleanupOldLogFiles { instance: id } => {
                 let mut deleted = 0;
@@ -1396,28 +1374,29 @@ impl BackendState {
                     account_info.accounts.move_index(from_index, to_index);
                 });
             },
-            MessageToBackend::SetProxyConfiguration { config, password } => {
-                self.config.write().modify(|backend_config| {
+            MessageToBackend::SetProxyConfiguration { config } => {
+                self.config.lock().modify(|backend_config| {
                     backend_config.proxy = config;
                 });
 
-                // system keyring (store or delete)
-                if let Some(password) = password {
-                    match self.secret_storage.get_or_init(PlatformSecretStorage::new).await {
-                        Ok(storage) => {
-                            if password.is_empty() {
-                                if let Err(e) = storage.delete_proxy_password().await {
-                                    log::warn!("Failed to delete proxy password from keyring: {:?}", e);
-                                }
-                            } else if let Err(e) = storage.write_proxy_password(&password).await {
-                                log::warn!("Failed to write proxy password to keyring: {:?}", e);
-                                self.send.send_error("Failed to save proxy password to system keyring");
+                // Notify user that restart is required for proxy changes to take effect
+                self.send.send_info("Proxy settings saved. Restart the launcher to apply changes.");
+            },
+            MessageToBackend::SetProxyPassword { password } => {
+                match self.secret_storage.get_or_init(PlatformSecretStorage::new).await {
+                    Ok(storage) => {
+                        if password.is_empty() {
+                            if let Err(e) = storage.delete_proxy_password().await {
+                                log::warn!("Failed to delete proxy password from keyring: {:?}", e);
                             }
-                        },
-                        Err(e) => {
-                            log::warn!("Failed to initialize secret storage: {:?}", e);
-                            self.send.send_error("Failed to access system keyring for proxy password");
+                        } else if let Err(e) = storage.write_proxy_password(&password).await {
+                            log::warn!("Failed to write proxy password to keyring: {:?}", e);
+                            self.send.send_error("Failed to save proxy password to system keyring");
                         }
+                    },
+                    Err(e) => {
+                        log::warn!("Failed to initialize secret storage: {:?}", e);
+                        self.send.send_error("Failed to access system keyring for proxy password");
                     }
                 }
 

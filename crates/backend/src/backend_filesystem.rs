@@ -300,7 +300,7 @@ impl BackendState {
                 if file_name == "instances" {
                     self.load_all_instances().await;
                 } else if file_name == "config.json" {
-                    self.config.write().mark_changed(&path);
+                    self.config.lock().mark_changed(&path);
                 } else if file_name == "accounts.json" {
                     let mut account_info = self.account_info.write();
                     account_info.mark_changed(&path);

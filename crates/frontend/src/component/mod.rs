@@ -1,8 +1,10 @@
 pub mod content_list;
 pub mod error_alert;
+pub mod generic_title_bar;
 pub mod horizontal_sections;
 pub mod instance_dropdown;
 pub mod instance_list;
+pub mod main_title_bar;
 pub mod menu;
 pub mod named_dropdown;
 pub mod page_path;
@@ -15,7 +17,6 @@ pub mod resize_panel;
 pub mod responsive_grid;
 pub mod search_helper;
 pub mod shrinking_text;
-pub mod title_bar;
 
 pub fn create_styled_text(text: &schema::text_component::FlatTextComponent, grayscale: bool) -> gpui::StyledText {
     gpui::StyledText::new(&text.content)

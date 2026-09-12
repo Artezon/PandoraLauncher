@@ -17,13 +17,6 @@ use crate::{
     }, manual_download::{ManualCurseforgeDownloadRequest}, meta::{MetadataRequest, MetadataResult}, modal_action::ModalAction, notify_signal::KeepAliveNotifySignalHandle,
 };
 
-#[derive(Debug)]
-#[derive(Default)]
-pub struct BackendConfigWithPassword {
-    pub config: BackendConfig,
-    pub proxy_password: Option<String>,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExportFormat {
     Zip,
@@ -240,7 +233,7 @@ pub enum MessageToBackend {
         channel: tokio::sync::oneshot::Sender<SyncState>,
     },
     GetBackendConfiguration {
-        channel: tokio::sync::oneshot::Sender<BackendConfigWithPassword>,
+        channel: tokio::sync::oneshot::Sender<BackendConfig>,
     },
     SetSyncing {
         target: Arc<str>,
@@ -273,7 +266,9 @@ pub enum MessageToBackend {
     },
     SetProxyConfiguration {
         config: ProxyConfig,
-        password: Option<String>,
+    },
+    SetProxyPassword {
+        password: String,
     },
     CreateInstanceShortcut {
         id: InstanceID,

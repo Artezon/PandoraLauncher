@@ -10,10 +10,10 @@ use bridge::{
     modal_action::ModalAction,
 };
 use gpui::{prelude::*, *};
-use gpui_component::{Root, Theme, WindowExt, scroll::ScrollableElement, v_flex};
+use gpui_component::{Root, Theme, scroll::ScrollableElement, v_flex};
 use rustc_hash::FxHashSet;
 
-use crate::{Backwards, CloseWindow, Forwards, MAIN_FONT, OpenSettings, entity::DataEntities, game_output::{GameOutput, GameOutputRoot}, interface_config::{InterfaceConfig, LiveGameOutputDisplay}, modals, pages::instance::instance_page::InstanceSubpageType, ui::{LauncherUI, PageType}};
+use crate::{Backwards, CloseWindow, Forwards, OpenSettings, entity::DataEntities, game_output::{GameOutput, GameOutputRoot}, interface_config::{InterfaceConfig, LiveGameOutputDisplay}, modals, pages::instance::instance_page::InstanceSubpageType, ui::{LauncherUI, PageType}};
 
 pub struct LauncherRootGlobal {
     pub root: Entity<LauncherRoot>,
@@ -82,7 +82,6 @@ impl Render for LauncherRoot {
 
         v_flex()
             .size_full()
-            .font_family(MAIN_FONT)
             .child(self.ui.clone())
             .children(sheet_layer)
             .children(dialog_layer)
@@ -94,8 +93,7 @@ impl Render for LauncherRoot {
             .on_action({
                 let data = self.data.clone();
                 move |_: &OpenSettings, window, cx| {
-                    let build = crate::modals::settings::build_settings_sheet(&data, window, cx);
-                    window.open_sheet_at(gpui_component::Placement::Left, cx, build);
+                    crate::settings::open_settings_window(window, &data, cx);
                 }
             })
             .on_action({
