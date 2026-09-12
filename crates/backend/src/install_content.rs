@@ -1053,7 +1053,7 @@ impl BackendState {
         }
 
 
-        let mut builder = self.redirecting_http_client.get(&*url)
+        let mut builder = self.http_client_provider.redirecting().get(&*url)
             .header("modrinth-download-meta", serde_json::to_string(&download_meta).unwrap_or_default());
 
         if let Ok(url) = url::Url::parse(&*url) {

@@ -69,13 +69,7 @@ pub fn start(
     mut recv: FrontendReceiver,
     quit_coordinator: QuitCoordinator,
 ) {
-    let user_agent = if let Some(version) = option_env!("PANDORA_RELEASE_VERSION") {
-        format!("PandoraLauncher/{version} (https://github.com/Moulberry/PandoraLauncher)")
-    } else {
-        "PandoraLauncher/dev (https://github.com/Moulberry/PandoraLauncher)".to_string()
-    };
-
-    let http_client = Arc::new(reqwest_client::ReqwestClient::user_agent(&user_agent).unwrap());
+    let http_client = Arc::new(reqwest_client::ReqwestClient::user_agent(&*schema::USER_AGENT).unwrap());
 
     gpui_platform::application().with_http_client(http_client).with_assets(Assets).run(move |cx: &mut App| {
         let _ = cx.text_system().add_fonts(vec![

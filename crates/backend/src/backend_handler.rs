@@ -1264,7 +1264,7 @@ impl BackendState {
                     return;
                 }
 
-                let result = self.http_client.post("https://api.mclo.gs/1/log").form(&[("content", &*replaced)]).send().await;
+                let result = self.http_client_provider.client().post("https://api.mclo.gs/1/log").form(&[("content", &*replaced)]).send().await;
 
                 let resp = match result {
                     Ok(resp) => resp,
@@ -1379,8 +1379,7 @@ impl BackendState {
                     backend_config.proxy = config;
                 });
 
-                // Notify user that restart is required for proxy changes to take effect
-                self.send.send_info("Proxy settings saved. Restart the launcher to apply changes.");
+                self.update_http_clients().await;
             },
             MessageToBackend::SetProxyPassword { password } => {
                 match self.secret_storage.get_or_init(PlatformSecretStorage::new).await {
@@ -1388,20 +1387,22 @@ impl BackendState {
                         if password.is_empty() {
                             if let Err(e) = storage.delete_proxy_password().await {
                                 log::warn!("Failed to delete proxy password from keyring: {:?}", e);
+                                return;
                             }
                         } else if let Err(e) = storage.write_proxy_password(&password).await {
                             log::warn!("Failed to write proxy password to keyring: {:?}", e);
                             self.send.send_error("Failed to save proxy password to system keyring");
+                            return;
                         }
                     },
                     Err(e) => {
                         log::warn!("Failed to initialize secret storage: {:?}", e);
                         self.send.send_error("Failed to access system keyring for proxy password");
+                        return;
                     }
                 }
 
-                // Notify user that restart is required for proxy changes to take effect
-                self.send.send_info("Proxy settings saved. Restart the launcher to apply changes.");
+                self.update_http_clients().await;
             },
             MessageToBackend::CreateInstanceShortcut { id, path } => {
                 if let Some(instance) = self.instance_state.write().instances.get_mut(id) {
@@ -1521,7 +1522,7 @@ impl BackendState {
                 }
             },
             MessageToBackend::InstallUpdate { update, modal_action } => {
-                tokio::task::spawn(crate::update::install_update(self.redirecting_http_client.clone(), self.directories.clone(), self.send.clone(), update, modal_action));
+                tokio::task::spawn(crate::update::install_update(self.http_client_provider.redirecting(), self.directories.clone(), self.send.clone(), update, modal_action));
             },
             MessageToBackend::ImportFromOtherLauncher { launcher, import_job, modal_action } => {
                 crate::launcher_import::import_from_other_launcher(self, launcher, import_job, modal_action).await;
@@ -1558,7 +1559,7 @@ impl BackendState {
                         .file_name("file.png")
                         .mime_str("image/png").unwrap());
 
-                let response = self.http_client
+                let response = self.http_client_provider.client()
                     .post("https://api.minecraftservices.com/minecraft/profile/skins")
                     .multipart(form)
                     .bearer_auth(access_token.secret())
@@ -1619,11 +1620,11 @@ impl BackendState {
                         cape_id: Uuid
                     }
 
-                    self.http_client.put("https://api.minecraftservices.com/minecraft/profile/capes/active").json(&PutActiveCape {
+                    self.http_client_provider.client().put("https://api.minecraftservices.com/minecraft/profile/capes/active").json(&PutActiveCape {
                         cape_id: cape
                     })
                 } else {
-                    self.http_client.delete("https://api.minecraftservices.com/minecraft/profile/capes/active")
+                    self.http_client_provider.client().delete("https://api.minecraftservices.com/minecraft/profile/capes/active")
                 };
 
                 let response = request
@@ -1682,7 +1683,7 @@ impl BackendState {
                             .unwrap_or("skin.png")
                             .to_owned();
 
-                        let response = self.redirecting_http_client.get(url).send().await;
+                        let response = self.http_client_provider.redirecting().get(url).send().await;
 
                         let response = match response {
                             Ok(response) => response,
@@ -1755,7 +1756,7 @@ impl BackendState {
                     "https://api.mojang.com/minecraft/profile/lookup/name/{}",
                     username
                 );
-                let response = match self.http_client.get(&lookup_url).send().await {
+                let response = match self.http_client_provider.client().get(&lookup_url).send().await {
                     Ok(r) => r,
                     Err(err) => {
                         log::error!("CopyPlayerSkin: failed to request Mojang API: {:?}", err);
@@ -1801,7 +1802,7 @@ impl BackendState {
                     "https://sessionserver.mojang.com/session/minecraft/profile/{}",
                     uuid
                 );
-                let response = match self.http_client.get(&session_url).send().await {
+                let response = match self.http_client_provider.client().get(&session_url).send().await {
                     Ok(r) => r,
                     Err(err) => {
                         log::error!("CopyPlayerSkin: failed to request session server: {:?}", err);
@@ -1842,7 +1843,7 @@ impl BackendState {
 
                 let filename = format!("{}.png", username);
 
-                let response = match self.redirecting_http_client.get(url).send().await {
+                let response = match self.http_client_provider.redirecting().get(url).send().await {
                     Ok(r) => r,
                     Err(err) => {
                         log::error!("CopyPlayerSkin: failed to request skin texture: {:?}", err);
@@ -1959,7 +1960,7 @@ impl BackendState {
         modal_action.clear_trackers();
 
         let launch_tracker = modal_action.push_tracker("Launching".into());
-        let result = self.launcher.launch(&self.redirecting_http_client, dot_minecraft, configuration, quick_play, login_info, live_game_output.is_some(), &launch_tracker, &modal_action).await;
+        let result = self.launcher.launch(&self.http_client_provider.redirecting(), dot_minecraft, configuration, quick_play, login_info, live_game_output.is_some(), &launch_tracker, &modal_action).await;
 
         if matches!(result, Err(LaunchError::CancelledByUser)) {
             return;

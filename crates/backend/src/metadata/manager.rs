@@ -27,7 +27,7 @@ use sha1::{Digest, Sha1};
 use tokio::task::JoinHandle;
 use ustr::Ustr;
 
-use crate::metadata::items::{MetadataItem, ModrinthV3VersionUpdateMetadataItem, ModrinthVersionUpdateMetadataItem};
+use crate::{HttpClientProvider, metadata::items::{MetadataItem, ModrinthV3VersionUpdateMetadataItem, ModrinthVersionUpdateMetadataItem}};
 
 pub struct MetaState<T> {
     keep_alive: Option<KeepAliveNotifySignalHandle>,
@@ -41,6 +41,15 @@ impl <T> Default for MetaState<T> {
             keep_alive: None,
             load_state: MetaLoadState::Unloaded,
             failure_count: 0
+        }
+    }
+}
+
+impl <T> Drop for MetaState<T> {
+    fn drop(&mut self) {
+        match &self.load_state {
+            MetaLoadState::Pending(handle) => handle.abort(),
+            _ => {}
         }
     }
 }
@@ -121,7 +130,7 @@ pub struct MetadataManager {
 
     expiring: enum_map::EnumMap<ExpirationDuration, Mutex<VecDeque<(Instant, KeepAliveNotifySignal)>>>,
 
-    http_client: reqwest::Client,
+    http_client: HttpClientProvider,
 }
 
 #[derive(thiserror::Error, Clone, Debug)]
@@ -232,7 +241,7 @@ pub enum MetaLoadState<T> {
 }
 
 impl MetadataManager {
-    pub fn new(http_client: reqwest::Client, directory: Arc<Path>) -> Self {
+    pub fn new(http_client: HttpClientProvider, directory: Arc<Path>) -> Self {
         Self {
             states: Mutex::new(MetadataManagerStates::default()),
 
@@ -246,6 +255,13 @@ impl MetadataManager {
             expiring: Default::default(),
 
             http_client,
+        }
+    }
+
+    pub fn clear(&self) {
+        *self.states.lock() = MetadataManagerStates::default();
+        for expiring in self.expiring.values() {
+            expiring.lock().clear();
         }
     }
 
@@ -282,7 +298,7 @@ impl MetadataManager {
             }
 
             let cache_file = item.cache_file(self);
-            wrapper.load_state = Self::inner_start_loading(&item, cache_file, &self.http_client);
+            wrapper.load_state = Self::inner_start_loading(&item, cache_file, &self.http_client.client());
         }
     }
 
@@ -321,7 +337,7 @@ impl MetadataManager {
 
                 if wrapper.should_reload(force_reload) {
                     let cache_file = item.cache_file(self);
-                    wrapper.load_state = Self::inner_start_loading(item, cache_file, &self.http_client);
+                    wrapper.load_state = Self::inner_start_loading(item, cache_file, &self.http_client.client());
                 }
                 force_reload = false;
 
