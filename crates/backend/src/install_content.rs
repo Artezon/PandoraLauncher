@@ -1,18 +1,19 @@
-use std::{ffi::{OsStr, OsString}, io::Write, path::{Path, PathBuf}, sync::Arc};
+use std::{ffi::{OsStr, OsString}, io::Write, path::Path, sync::Arc};
 
 use bridge::{
-    install::{ContentDownload, ContentInstall, ContentInstallFile, ContentInstallPath, InstallTarget}, instance::{ContentFolder, ContentSummary, ContentType, ModpackFileSource}, manual_download::ManualCurseforgeDownload, modal_action::{ModalAction, ProgressTrackerFinishType}, safe_path::SafePath
+    install::{ContentDownload, ContentInstall, ContentInstallFile, ContentInstallPath, InstallTarget}, instance::{ContentFolder, ContentSummary, ContentType, ModpackFileSource}, manual_download::ManualCurseforgeDownload, modal_action::{ModalAction, ProgressTrackerFinishType}, notify_signal::KeepAliveNotifySignal, safe_path::SafePath
 };
+use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use reqwest::StatusCode;
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 use schema::{content::{ContentInstallReason, ContentSource}, curseforge::{CURSEFORGE_API_KEY, CURSEFORGE_RELATION_TYPE_REQUIRED_DEPENDENCY, CachedCurseforgeFileInfo, CurseforgeGetFilesRequest, CurseforgeGetModFilesRequest, CurseforgeModLoaderType}, loader::Loader, modrinth::{ModrinthDependencyType, ModrinthLoader, ModrinthProjectVersionsRequest}};
 use serde::Serialize;
 use sha1::{Digest, Sha1};
 use strum::IntoEnumIterator;
 use ustr::Ustr;
 
-use crate::{BackendState, instance::Instance, lockfile::Lockfile, metadata::{items::{CurseforgeGetFilesMetadataItem, CurseforgeGetModFilesMetadataItem, CurseforgeProjectItem, ModrinthProjectVersionsMetadataItem, ModrinthVersionMetadataItem}, manager::MetaLoadError}};
+use crate::{BackendState, instance::Instance, metadata::{items::{CurseforgeGetFilesMetadataItem, CurseforgeGetModFilesMetadataItem, CurseforgeProjectItem, ModrinthProjectVersionsMetadataItem, ModrinthVersionMetadataItem}, manager::MetaLoadError}};
 
 #[derive(thiserror::Error, Debug)]
 pub enum ContentInstallError {
@@ -50,7 +51,7 @@ pub enum ContentInstallError {
 
 struct InstallFromContentLibrary {
     filename: Arc<str>,
-    from: PathBuf,
+    from: Arc<Path>,
     replace: Option<Arc<Path>>,
     hash: [u8; 20],
     install_path: Option<Arc<Path>>,
@@ -96,6 +97,8 @@ struct InstalledContentIds {
     curseforge_projects: FxHashSet<u32>,
     summary_ids: FxHashSet<Arc<str>>,
 }
+
+static FILE_LOCKS: Lazy<Mutex<FxHashMap<Arc<Path>, KeepAliveNotifySignal>>> = Lazy::new(Default::default);
 
 impl BackendState {
     pub async fn install_content(self: &Arc<Self>, content: ContentInstall, modal_action: ModalAction) {
@@ -764,6 +767,8 @@ impl BackendState {
                     path.set_extension(extension);
                 }
 
+                let path: Arc<Path> = path.into();
+
                 let mod_summary = {
                     let path = path.clone();
                     let mod_metadata_manager = self.mod_metadata_manager.clone();
@@ -885,7 +890,7 @@ impl BackendState {
         }
     }
 
-    async fn download_file_into_library(&self, modal_action: &ModalAction, name: FilenameAndExtension, url: &Arc<str>, sha1: [u8; 20], size: usize, download_meta: ModrinthDownloadMeta) -> Result<(PathBuf, [u8; 20], Arc<ContentSummary>), ContentInstallError> {
+    async fn download_file_into_library(&self, modal_action: &ModalAction, name: FilenameAndExtension, url: &Arc<str>, sha1: [u8; 20], size: usize, download_meta: ModrinthDownloadMeta) -> Result<(Arc<Path>, [u8; 20], Arc<ContentSummary>), ContentInstallError> {
         let mut result = self.download_file_into_library_inner(modal_action, name, url.clone(), sha1, size, download_meta.clone()).await?;
 
         let mut curseforge_file_ids = Vec::new();
@@ -1016,7 +1021,7 @@ impl BackendState {
         Ok(result)
     }
 
-    async fn download_file_into_library_inner(&self, modal_action: &ModalAction, name: FilenameAndExtension, url: Arc<str>, sha1: [u8; 20], size: usize, download_meta: ModrinthDownloadMeta) -> Result<(PathBuf, [u8; 20], Arc<ContentSummary>), ContentInstallError> {
+    async fn download_file_into_library_inner(&self, modal_action: &ModalAction, name: FilenameAndExtension, url: Arc<str>, sha1: [u8; 20], size: usize, download_meta: ModrinthDownloadMeta) -> Result<(Arc<Path>, [u8; 20], Arc<ContentSummary>), ContentInstallError> {
         let hash_as_str = hex::encode(sha1);
 
         let hash_folder = self.directories.content_library_dir.join(&hash_as_str[..2]);
@@ -1027,9 +1032,23 @@ impl BackendState {
             path.set_extension(extension);
         }
 
+        let path: Arc<Path> = path.into();
+
         let _permit = self.content_install_semaphore.acquire().await.unwrap();
 
-        let lockfile = Lockfile::create(path.with_added_extension("lock").into()).await;
+        loop {
+            let occupied = match FILE_LOCKS.lock().entry(path.clone()) {
+                std::collections::hash_map::Entry::Occupied(occupied_entry) => {
+                    occupied_entry.get().create_handle()
+                },
+                std::collections::hash_map::Entry::Vacant(vacant_entry) => {
+                    vacant_entry.insert(KeepAliveNotifySignal::new());
+                    break;
+                },
+            };
+
+            occupied.await_notification().await;
+        };
 
         let file_name = name.filename.clone();
 
@@ -1108,7 +1127,7 @@ impl BackendState {
             }
         }
 
-        drop(lockfile);
+        FILE_LOCKS.lock().remove(&path);
 
         let summary = self.mod_metadata_manager.get_path(&path);
         Ok((path, sha1, summary))
