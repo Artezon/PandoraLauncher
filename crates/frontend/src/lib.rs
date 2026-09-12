@@ -88,9 +88,9 @@ pub fn start(
         let theme_folder = launcher_dir.join("themes");
 
         _ = gpui_component::ThemeRegistry::watch_dir(theme_folder.clone(), cx, move |cx| {
-            InterfaceConfig::apply_theme(cx);
+            InterfaceConfig::apply_theme(cx, true);
         });
-        InterfaceConfig::apply_theme(cx);
+        InterfaceConfig::apply_theme(cx, false);
 
         cx.set_quit_mode(QuitMode::Explicit);
 

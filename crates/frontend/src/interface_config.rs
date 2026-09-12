@@ -138,14 +138,16 @@ impl InterfaceConfig {
         }
     }
 
-    pub fn apply_theme(cx: &mut App) {
+    pub fn apply_theme(cx: &mut App, log: bool) {
         cx.update_global::<InterfaceConfigHolder, _>(|holder, cx| {
             let registry = gpui_component::ThemeRegistry::global(cx);
             let theme_config = if let Some(active_theme) = &holder.config.active_theme {
                 if let Some(theme_config) = registry.themes().get(active_theme).cloned() {
                     theme_config
                 } else {
-                    log::warn!("Unable to find theme with name {}, using default theme", active_theme);
+                    if log {
+                        log::warn!("Unable to find theme with name {}, using default theme", active_theme);
+                    }
                     registry.default_dark_theme().clone()
                 }
             } else {

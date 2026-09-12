@@ -47,7 +47,7 @@ pub(super) fn create_page(data: &DataEntities, window: &mut Window, cx: &mut App
                             get: |cx| cx.theme().font_size.as_f32().round() as i32,
                             set: |val, cx| {
                                 InterfaceConfig::get_mut(cx).set_font_size(val);
-                                InterfaceConfig::apply_theme(cx);
+                                InterfaceConfig::apply_theme(cx, true);
                             },
                             min: Some(8),
                             max: Some(32),
@@ -103,7 +103,7 @@ fn create_theme_dropdown(window: &mut Window, cx: &mut App) -> SettingItemWidget
             return
         };
         InterfaceConfig::get_mut(cx).set_active_theme(theme_name.clone());
-        InterfaceConfig::apply_theme(cx);
+        InterfaceConfig::apply_theme(cx, true);
     }).detach();
 
     SettingItemWidget::Any(Rc::new(move |_, _| {
@@ -127,7 +127,7 @@ fn create_font_dropdown(window: &mut Window, cx: &mut App) -> SettingItemWidget 
         };
 
         InterfaceConfig::get_mut(cx).set_font_family(font_family.clone());
-        InterfaceConfig::apply_theme(cx);
+        InterfaceConfig::apply_theme(cx, true);
     }).detach();
 
     SettingItemWidget::Any(Rc::new(move |_, _| {
