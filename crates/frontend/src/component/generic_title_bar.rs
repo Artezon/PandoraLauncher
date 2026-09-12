@@ -171,7 +171,7 @@ impl RenderOnce for WindowControl {
 }
 
 #[cfg(windows)]
-static WINDOWS_ICON_FONT: Lazy<&'static str> = Lazy::new(|| {
+static WINDOWS_ICON_FONT: once_cell::sync::Lazy<&'static str> = once_cell::sync::Lazy::new(|| {
     let mut version = unsafe { std::mem::zeroed() };
     let status = unsafe {
         windows::Wdk::System::SystemServices::RtlGetVersion(&mut version)
