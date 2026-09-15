@@ -34,6 +34,7 @@ pub trait MetadataItem: Debug {
     type T: Send + Sync + 'static;
 
     fn request(&self, client: &reqwest::Client) -> RequestBuilder;
+    fn host(&self) -> &str;
     fn expires(&self) -> bool;
     fn state(&self, states: &mut MetadataManagerStates) -> MetaStateWrapper<Self::T>;
     fn post_process_download(bytes: &[u8]) -> Result<Cow<'_, [u8]>, MetaLoadError> {
@@ -48,6 +49,13 @@ pub trait MetadataItem: Debug {
     }
 }
 
+fn parse_host(mut url: &str) -> &str {
+    url = url.split_once("://").map(|(_, r)| r).unwrap_or(url);
+    url = url.split_once('@').map(|(_, r)| r).unwrap_or(url);
+    url = url.split_once([':', '/']).map(|(l, _)| l).unwrap_or(url);
+    url
+}
+
 #[derive(Debug)]
 pub struct MinecraftVersionManifestMetadataItem;
 
@@ -56,6 +64,10 @@ impl MetadataItem for MinecraftVersionManifestMetadataItem {
 
     fn request(&self, client: &reqwest::Client) -> RequestBuilder {
         client.get(MOJANG_VERSION_MANIFEST_URL)
+    }
+
+    fn host(&self) -> &str {
+        parse_host(MOJANG_VERSION_MANIFEST_URL)
     }
 
     fn expires(&self) -> bool {
@@ -85,6 +97,10 @@ impl MetadataItem for MojangJavaRuntimesMetadataItem {
         client.get(JAVA_RUNTIMES_URL)
     }
 
+    fn host(&self) -> &str {
+        parse_host(JAVA_RUNTIMES_URL)
+    }
+
     fn expires(&self) -> bool {
         true
     }
@@ -110,6 +126,10 @@ impl<'v> MetadataItem for MinecraftVersionMetadataItem<'v> {
 
     fn request(&self, client: &reqwest::Client) -> RequestBuilder {
         client.get(self.0.url.as_str())
+    }
+
+    fn host(&self) -> &str {
+        parse_host(self.0.url.as_str())
     }
 
     fn expires(&self) -> bool {
@@ -152,6 +172,10 @@ impl MetadataItem for AssetsIndexMetadataItem {
         client.get(self.url.as_str())
     }
 
+    fn host(&self) -> &str {
+        parse_host(&self.url.as_str())
+    }
+
     fn expires(&self) -> bool {
         false
     }
@@ -187,6 +211,10 @@ impl MetadataItem for MojangJavaRuntimeComponentMetadataItem {
         client.get(self.url.as_str())
     }
 
+    fn host(&self) -> &str {
+        parse_host(self.url.as_str())
+    }
+
     fn expires(&self) -> bool {
         false
     }
@@ -218,6 +246,10 @@ impl MetadataItem for FabricLoaderManifestMetadataItem {
         client.get(FABRIC_LOADER_MANIFEST_URL)
     }
 
+    fn host(&self) -> &str {
+        parse_host(FABRIC_LOADER_MANIFEST_URL)
+    }
+
     fn expires(&self) -> bool {
         true
     }
@@ -246,6 +278,10 @@ impl MetadataItem for FabricLaunchMetadataItem {
 
     fn request(&self, client: &reqwest::Client) -> RequestBuilder {
         client.get(format!("https://meta.fabricmc.net/v2/versions/loader/{}/{}", self.minecraft_version, self.loader_version))
+    }
+
+    fn host(&self) -> &str {
+        "meta.fabricmc.net"
     }
 
     fn expires(&self) -> bool {
@@ -279,6 +315,10 @@ impl<'a> MetadataItem for ModrinthSearchMetadataItem<'a> {
         client.get(MODRINTH_SEARCH_URL).query(self.0)
     }
 
+    fn host(&self) -> &str {
+        parse_host(MODRINTH_SEARCH_URL)
+    }
+
     fn expires(&self) -> bool {
         true
     }
@@ -310,6 +350,10 @@ impl<'a> MetadataItem for ModrinthProjectVersionsMetadataItem<'a> {
         request
     }
 
+    fn host(&self) -> &str {
+        "api.modrinth.com"
+    }
+
     fn expires(&self) -> bool {
         true
     }
@@ -334,6 +378,10 @@ impl MetadataItem for ModrinthVersionMetadataItem {
         client.get(url)
     }
 
+    fn host(&self) -> &str {
+        "api.modrinth.com"
+    }
+
     fn expires(&self) -> bool {
         true
     }
@@ -356,6 +404,10 @@ impl<'a> MetadataItem for ModrinthChangelogMetadataItem<'a> {
     fn request(&self, client: &reqwest::Client) -> RequestBuilder {
         let url = format!("https://api.modrinth.com/v2/version/{}", self.0.version_id);
         client.get(url)
+    }
+
+    fn host(&self) -> &str {
+        "api.modrinth.com"
     }
 
     fn expires(&self) -> bool {
@@ -390,6 +442,10 @@ impl MetadataItem for ModrinthVersionUpdateMetadataItem {
     fn request(&self, client: &reqwest::Client) -> RequestBuilder {
         let url = format!("https://api.modrinth.com/v2/version_file/{}/update", self.sha1);
         client.post(url).json(&self.params)
+    }
+
+    fn host(&self) -> &str {
+        "api.modrinth.com"
     }
 
     fn expires(&self) -> bool {
@@ -432,6 +488,10 @@ impl MetadataItem for ModrinthV3VersionUpdateMetadataItem {
         client.post(url).json(&self.params)
     }
 
+    fn host(&self) -> &str {
+        "api.modrinth.com"
+    }
+
     fn expires(&self) -> bool {
         true
     }
@@ -453,6 +513,10 @@ impl<'a> MetadataItem for ModrinthVersionsFromHashesMetadataItem<'a> {
 
     fn request(&self, client: &reqwest::Client) -> RequestBuilder {
         client.post("https://api.modrinth.com/v2/version_files").json(self.0)
+    }
+
+    fn host(&self) -> &str {
+        "api.modrinth.com"
     }
 
     fn expires(&self) -> bool {
@@ -489,6 +553,10 @@ impl<'a> MetadataItem for ModrinthProjectsMetadataItem<'a> {
         client.get("https://api.modrinth.com/v2/projects").query(&[("ids", ids)])
     }
 
+    fn host(&self) -> &str {
+        "api.modrinth.com"
+    }
+
     fn expires(&self) -> bool {
         true
     }
@@ -510,6 +578,10 @@ impl MetadataItem for NeoforgeInstallerMavenMetadataItem {
 
     fn request(&self, client: &reqwest::Client) -> RequestBuilder {
         client.get("https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml")
+    }
+
+    fn host(&self) -> &str {
+        "maven.neoforged.net"
     }
 
     fn expires(&self) -> bool {
@@ -545,6 +617,10 @@ impl MetadataItem for ForgeInstallerMavenMetadataItem {
 
     fn request(&self, client: &reqwest::Client) -> RequestBuilder {
         client.get("https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml")
+    }
+
+    fn host(&self) -> &str {
+        "maven.minecraftforge.net"
     }
 
     fn expires(&self) -> bool {
@@ -593,6 +669,10 @@ impl<'a> MetadataItem for ModrinthProjectMetadataItem<'a> {
         client.get(url)
     }
 
+    fn host(&self) -> &str {
+        parse_host(MODRINTH_PROJECT_URL)
+    }
+
     fn expires(&self) -> bool {
         true
     }
@@ -620,6 +700,10 @@ impl<'a> MetadataItem for CurseforgeSearchMetadataItem<'a> {
             .header("x-api-key", CURSEFORGE_API_KEY)
     }
 
+    fn host(&self) -> &str {
+        parse_host(CURSEFORGE_SEARCH_URL)
+    }
+
     fn expires(&self) -> bool {
         true
     }
@@ -643,6 +727,10 @@ impl<'a> MetadataItem for CurseforgeFingerprintMetadataItem<'a> {
         client.post("https://api.curseforge.com/v1/fingerprints")
             .json(self.0)
             .header("x-api-key", CURSEFORGE_API_KEY)
+    }
+
+    fn host(&self) -> &str {
+        "api.curseforge.com"
     }
 
     fn expires(&self) -> bool {
@@ -687,6 +775,10 @@ impl<'a> MetadataItem for CurseforgeGetModFilesMetadataItem<'a> {
         req
     }
 
+    fn host(&self) -> &str {
+        "api.curseforge.com"
+    }
+
     fn expires(&self) -> bool {
         true
     }
@@ -710,6 +802,10 @@ impl<'a> MetadataItem for CurseforgeGetFilesMetadataItem<'a> {
         client.post("https://api.curseforge.com/v1/mods/files")
             .json(self.0)
             .header("x-api-key", CURSEFORGE_API_KEY)
+    }
+
+    fn host(&self) -> &str {
+        "api.curseforge.com"
     }
 
     fn expires(&self) -> bool {
@@ -736,6 +832,10 @@ impl<'a> MetadataItem for CurseforgeChangelogMetadataItem<'a> {
             .header("x-api-key", CURSEFORGE_API_KEY)
     }
 
+    fn host(&self) -> &str {
+        "api.curseforge.com"
+    }
+
     fn expires(&self) -> bool {
         true
     }
@@ -760,6 +860,10 @@ impl<'a> MetadataItem for CurseforgeProjectItem {
     fn request(&self, client: &reqwest::Client) -> RequestBuilder {
         client.get(format!("https://api.curseforge.com/v1/mods/{}", self.project_id))
             .header("x-api-key", CURSEFORGE_API_KEY)
+    }
+
+    fn host(&self) -> &str {
+        "api.curseforge.com"
     }
 
     fn expires(&self) -> bool {
