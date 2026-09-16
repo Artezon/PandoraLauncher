@@ -1,14 +1,12 @@
 use std::{ffi::{OsStr, OsString}, io::Write, path::Path, sync::Arc};
 
 use bridge::{
-    install::{ContentDownload, ContentInstall, ContentInstallFile, ContentInstallPath, InstallTarget}, instance::{ContentFolder, ContentSummary, ContentType, ModpackFileSource}, manual_download::ManualCurseforgeDownload, modal_action::{ModalAction, ProgressTrackerFinishType}, notify_signal::KeepAliveNotifySignal, safe_path::SafePath
+    install::{ContentDownload, ContentInstall, ContentInstallFile, ContentInstallPath, InstallTarget}, instance::{ContentFolder, ContentSummary, ContentType, ModpackFileSource}, manual_download::ManualCurseforgeDownload, modal_action::{ModalAction, ProgressTrackerFinishType}, safe_path::SafePath
 };
-use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use reqwest::StatusCode;
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::{FxHashSet};
 use schema::{content::{ContentInstallReason, ContentSource}, curseforge::{CURSEFORGE_API_KEY, CURSEFORGE_RELATION_TYPE_REQUIRED_DEPENDENCY, CachedCurseforgeFileInfo, CurseforgeGetFilesRequest, CurseforgeGetModFilesRequest, CurseforgeModLoaderType}, loader::Loader, modrinth::{ModrinthDependencyType, ModrinthLoader, ModrinthProjectVersionsRequest}};
-use scopeguard::defer;
 use serde::Serialize;
 use sha1::{Digest, Sha1};
 use strum::IntoEnumIterator;
@@ -99,8 +97,6 @@ struct InstalledContentIds {
     summary_ids: FxHashSet<Arc<str>>,
 }
 
-static FILE_LOCKS: Lazy<Mutex<FxHashMap<Arc<Path>, KeepAliveNotifySignal>>> = Lazy::new(Default::default);
-
 impl BackendState {
     pub async fn install_content(self: &Arc<Self>, content: ContentInstall, modal_action: ModalAction) {
         let needs_installed_content_ids = content.files.iter().any(|content_file| {
@@ -114,6 +110,7 @@ impl BackendState {
             }
             false
         });
+
         let installed_content_ids: Option<Mutex<InstalledContentIds>> = if needs_installed_content_ids {
             let mut installed_content_ids = InstalledContentIds::default();
 
@@ -1037,23 +1034,7 @@ impl BackendState {
 
         let _permit = self.content_install_semaphore.acquire().await.unwrap();
 
-        loop {
-            let occupied = match FILE_LOCKS.lock().entry(path.clone()) {
-                std::collections::hash_map::Entry::Occupied(occupied_entry) => {
-                    occupied_entry.get().create_handle()
-                },
-                std::collections::hash_map::Entry::Vacant(vacant_entry) => {
-                    vacant_entry.insert(KeepAliveNotifySignal::new());
-                    break;
-                },
-            };
-
-            occupied.await_notification().await;
-        };
-        let defer_path = path.clone();
-        defer! {
-            FILE_LOCKS.lock().remove(&defer_path);
-        }
+        let _signal = crate::fs::lock_file(path.clone()).await;
 
         let file_name = name.filename.clone();
 
