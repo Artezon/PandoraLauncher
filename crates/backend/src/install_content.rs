@@ -8,6 +8,7 @@ use parking_lot::Mutex;
 use reqwest::StatusCode;
 use rustc_hash::{FxHashMap, FxHashSet};
 use schema::{content::{ContentInstallReason, ContentSource}, curseforge::{CURSEFORGE_API_KEY, CURSEFORGE_RELATION_TYPE_REQUIRED_DEPENDENCY, CachedCurseforgeFileInfo, CurseforgeGetFilesRequest, CurseforgeGetModFilesRequest, CurseforgeModLoaderType}, loader::Loader, modrinth::{ModrinthDependencyType, ModrinthLoader, ModrinthProjectVersionsRequest}};
+use scopeguard::defer;
 use serde::Serialize;
 use sha1::{Digest, Sha1};
 use strum::IntoEnumIterator;
@@ -904,7 +905,7 @@ impl BackendState {
 
             Some(files)
         } else {
-            None
+            return Ok(result);
         };
 
         let mut tasks = Vec::new();
@@ -1049,6 +1050,10 @@ impl BackendState {
 
             occupied.await_notification().await;
         };
+        let defer_path = path.clone();
+        defer! {
+            FILE_LOCKS.lock().remove(&defer_path);
+        }
 
         let file_name = name.filename.clone();
 
@@ -1070,7 +1075,6 @@ impl BackendState {
             let summary = self.mod_metadata_manager.get_path(&path);
             return Ok((path, sha1, summary));
         }
-
 
         let mut builder = self.http_client_provider.redirecting().get(&*url)
             .header("modrinth-download-meta", serde_json::to_string(&download_meta).unwrap_or_default());
@@ -1126,8 +1130,6 @@ impl BackendState {
                 unreachable!();
             }
         }
-
-        FILE_LOCKS.lock().remove(&path);
 
         let summary = self.mod_metadata_manager.get_path(&path);
         Ok((path, sha1, summary))
