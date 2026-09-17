@@ -22,9 +22,19 @@ pub struct InstanceList {
 impl InstanceList {
     pub fn create_table(data: &DataEntities, window: &mut Window, cx: &mut App) -> Entity<TableState<Self>> {
         let instances = data.instances.clone();
-        let items = instances.read(cx).entries.values().map(|i| i.read(cx).clone()).collect();
+        let items = instances.read(cx).entries.values().filter_map(|i| {
+            let entry = i.read(cx).clone();
+            if entry.name == schema::quickplay::INSTANCE_NAME {
+                None
+            } else {
+                Some(entry)
+            }
+        }).collect();
         cx.new(|cx| {
             let _instance_added_subscription = cx.subscribe::<_, InstanceAddedEvent>(&instances, |table: &mut TableState<InstanceList>, _, event, cx| {
+                if event.instance.name == schema::quickplay::INSTANCE_NAME {
+                    return;
+                }
                 table.delegate_mut().items.insert(0, event.instance.clone());
                 cx.notify();
             });

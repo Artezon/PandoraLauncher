@@ -25,6 +25,7 @@ mod metadata;
 mod mod_metadata;
 mod id_slab;
 mod persistent;
+mod quickplay_presets;
 mod server_list_pinger;
 mod shortcut;
 mod skin_manager;

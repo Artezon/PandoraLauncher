@@ -341,8 +341,8 @@ impl BackendState {
 
         paths_with_time.sort_by_key(|(_, time)| *time);
         for (path, _) in paths_with_time {
-            let success = self.load_instance_from_path(&path, true, false);
-            if !success {
+            let instance = self.load_instance_from_path(&path, true, false);
+            if instance.is_none() {
                 self.file_watching.write().watch_filesystem(path.into(), WatchTarget::InvalidInstanceDir);
             }
         }
@@ -355,11 +355,13 @@ impl BackendState {
 
         if let Some(instance) = instance_state.instances.remove(id) {
             self.send.send(MessageToFrontend::InstanceRemoved { id });
-            self.send.send_info(format!("Instance '{}' removed", instance.name));
+            if instance.should_send_notifications() {
+                self.send.send_info(format!("Instance '{}' removed", instance.name));
+            }
         }
     }
 
-    pub fn load_instance_from_path(&self, path: &Path, mut show_errors: bool, show_success: bool) -> bool {
+    pub fn load_instance_from_path(&self, path: &Path, mut show_errors: bool, show_success: bool) -> Option<InstanceID> {
         let instance = Instance::load_from_folder(&path);
 
         let instance_id = {
@@ -383,7 +385,7 @@ impl BackendState {
                     log::error!("Error loading instance: {:?}", &error);
                 }
 
-                return false;
+                return None;
             };
 
             for existing in instance_state.instances.iter_mut() {
@@ -396,11 +398,11 @@ impl BackendState {
 
                 let _ = self.send.send(existing.create_modify_message());
 
-                if show_success {
+                if show_success && existing.should_send_notifications() {
                     self.send.send_info(format!("Instance '{}' updated", existing.name));
                 }
 
-                return true;
+                return Some(existing.id);
             }
 
             let generation = instance_state.instances_generation;
@@ -417,7 +419,7 @@ impl BackendState {
 
             self.restore_mods_folder_if_stopped(instance);
 
-            if show_success {
+            if show_success && instance.should_send_notifications() {
                 self.send.send_success(format!("Instance '{}' created", instance.name));
             }
             let message = MessageToFrontend::InstanceAdded {
@@ -440,7 +442,7 @@ impl BackendState {
         };
 
         self.file_watching.write().watch_filesystem(path.into(), WatchTarget::InstanceDir { id: instance_id });
-        true
+        Some(instance_id)
     }
 
     async fn handle(self: Arc<Self>, mut backend_recv: BackendReceiver, mut watcher_rx: Receiver<notify_debouncer_full::DebounceEventResult>) {
@@ -813,7 +815,7 @@ impl BackendState {
 
         let original_mods_dir = instance.root_path.join("original_mods");
         if !original_mods_dir.exists() {
-            instance.set_frozen_mods_folder(false);
+            instance.frozen_mods_folder = false;
             return;
         }
 
@@ -835,7 +837,7 @@ impl BackendState {
             log::error!("Unable to restore mods directory: {err:?}");
         }
 
-        instance.set_frozen_mods_folder(false);
+        instance.frozen_mods_folder = false;
     }
 
     pub async fn prelaunch_setup_mods(self: &Arc<Self>, id: InstanceID, modal_action: &ModalAction) {
@@ -895,7 +897,7 @@ impl BackendState {
         let mod_copies = self.apply_modpack_and_collect_mods(loader, minecraft_version, &mods, &dot_minecraft_dir, &mods_dir, modal_action).await;
 
         if let Some(instance) = self.instance_state.write().instances.get_mut(id) {
-            instance.set_frozen_mods_folder(true);
+            instance.frozen_mods_folder = true;
         }
 
         let original_mods_dir = root_dir.join("original_mods");
@@ -1326,7 +1328,7 @@ impl BackendState {
         }
     }
 
-    pub async fn create_instance_sanitized(&self, name: &str, version: &str, loader: Loader, icon: Option<EmbeddedOrRaw>) -> Option<PathBuf> {
+    pub fn create_instance_sanitized(&self, name: &str, version: &str, loader: Loader, icon: Option<EmbeddedOrRaw>) -> Option<PathBuf> {
         let mut name = sanitize_filename::sanitize_with_options(name, sanitize_filename::Options { windows: true, ..Default::default() });
 
         if self.instance_state.read().instances.iter().any(|i| i.name == name) {
@@ -1340,10 +1342,10 @@ impl BackendState {
             }
         }
 
-        return self.create_instance(&name, version, loader, icon).await;
+        return self.create_instance(&name, version, loader, icon);
     }
 
-    pub async fn create_instance(&self, name: &str, version: &str, loader: Loader, icon: Option<EmbeddedOrRaw>) -> Option<PathBuf> {
+    pub fn create_instance(&self, name: &str, version: &str, loader: Loader, icon: Option<EmbeddedOrRaw>) -> Option<PathBuf> {
         log::info!("Creating instance {name}");
         if !crate::fs::is_single_component_path_str(&name) {
             self.send.send_warning(format!("Unable to create instance, name must not be a path: {}", name));

@@ -6,7 +6,7 @@ use schema::{
     backend_config::{BackendConfig, ProxyConfig}, instance::{
         InstanceConfiguration, InstanceJvmBinaryConfiguration, InstanceJvmFlagsConfiguration,
         InstanceLinuxWrapperConfiguration, InstanceMemoryConfiguration, InstanceSystemLibrariesConfiguration, InstanceWrapperCommandConfiguration, UpdateChannel,
-    }, loader::Loader, minecraft_profile::{MinecraftProfileCape, SkinVariant}, pandora_update::UpdatePrompt, unique_bytes::UniqueBytes
+    }, loader::Loader, minecraft_profile::{MinecraftProfileCape, SkinVariant}, pandora_update::UpdatePrompt, quickplay::QuickplayPreset, unique_bytes::UniqueBytes
 };
 use ustr::Ustr;
 use uuid::Uuid;
@@ -150,6 +150,13 @@ pub enum MessageToBackend {
     },
     StartInstance {
         id: InstanceID,
+        quick_play: Option<QuickPlayLaunch>,
+        live_game_output: Option<tokio::sync::oneshot::Sender<tokio::sync::mpsc::UnboundedReceiver<GameOutputMsg>>>,
+        modal_action: ModalAction,
+    },
+    StartQuickplayInstance {
+        preset: QuickplayPreset,
+        minecraft_version: Ustr,
         quick_play: Option<QuickPlayLaunch>,
         live_game_output: Option<tokio::sync::oneshot::Sender<tokio::sync::mpsc::UnboundedReceiver<GameOutputMsg>>>,
         modal_action: ModalAction,

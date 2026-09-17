@@ -3,7 +3,7 @@ use std::{cmp::Ordering, io::Write, path::Path, sync::Arc, time::Duration};
 use bridge::instance::InstanceContentSummary;
 use gpui::{App, BorrowAppContext, SharedString, Task};
 use rand::RngCore;
-use schema::{curseforge::CurseforgeClassId, modrinth::ModrinthProjectType};
+use schema::{curseforge::CurseforgeClassId, modrinth::ModrinthProjectType, quickplay::QuickplayPreset};
 use serde::{Deserialize, Serialize};
 
 use crate::{component::named_dropdown::DropdownName, pages::instance::instance_page::InstanceSubpageType, ui::PageType};
@@ -22,11 +22,11 @@ pub struct InterfaceConfig {
     pub language: t::Language,
 
     // Theme
-    #[serde(default, deserialize_with = "schema::try_deserialize")]
+    #[serde(default, skip_serializing_if = "schema::skip_if_none", deserialize_with = "schema::try_deserialize")]
     pub active_theme: Option<SharedString>,
-    #[serde(default, deserialize_with = "schema::try_deserialize")]
+    #[serde(default, skip_serializing_if = "schema::skip_if_none", deserialize_with = "schema::try_deserialize")]
     pub font_family: Option<SharedString>,
-    #[serde(default, deserialize_with = "schema::try_deserialize")]
+    #[serde(default, skip_serializing_if = "schema::skip_if_none", deserialize_with = "schema::try_deserialize")]
     pub font_size: Option<i32>,
 
     // Window state
@@ -102,6 +102,12 @@ pub struct InterfaceConfig {
     pub skin_list_show_3d: bool,
     #[serde(default = "default_zoom", deserialize_with = "schema::try_deserialize")]
     pub player_model_zoom: i32,
+
+    // Quickplay
+    #[serde(default, deserialize_with = "schema::try_deserialize")]
+    pub quickplay_preset: QuickplayPreset,
+    #[serde(default, skip_serializing_if = "schema::skip_if_none", deserialize_with = "schema::try_deserialize")]
+    pub quickplay_minecraft_version: Option<SharedString>,
 }
 
 pub const DEFAULT_THEME: &'static str = "Default Dark";
@@ -283,6 +289,8 @@ impl Default for InterfaceConfig {
             skin_list_sort_desc: false,
             skin_list_show_3d: true,
             player_model_zoom: default_zoom(),
+            quickplay_preset: QuickplayPreset::Vanilla,
+            quickplay_minecraft_version: None,
         }
     }
 }

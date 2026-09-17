@@ -5,7 +5,7 @@ use bridge::{
     install::{ContentDownload, ContentInstall, ContentInstallFile, ContentInstallPath, InstallTarget}, instance::{ContentFolder, ContentSummary, ContentType, InstanceID}, keep_alive::KeepAlive, message::{AccountCapesResult, AccountSkinResult, EmbeddedOrRaw, GameOutputMsg, LogFiles, MessageToBackend, MessageToFrontend, QuickPlayLaunch}, meta::MetadataResult, modal_action::{ModalAction, ModalActionVisitUrl, ProgressTrackerFinishType}, serial::AtomicOptionSerial
 };
 use futures::TryFutureExt;
-use schema::{auxiliary::AuxiliaryContentMeta, content::{ContentInstallReason, ContentSource}, curseforge::CurseforgeGetModFilesRequest, loader::Loader, minecraft_profile::{MinecraftProfileResponse, SkinVariant}, modrinth::ModrinthLoader, version::{LaunchArgument, LaunchArgumentValue}};
+use schema::{auxiliary::AuxiliaryContentMeta, content::{ContentInstallReason, ContentSource}, curseforge::CurseforgeGetModFilesRequest, loader::Loader, minecraft_profile::{MinecraftProfileResponse, SkinVariant}, modrinth::ModrinthLoader, quickplay::QuickplayPreset, version::{LaunchArgument, LaunchArgumentValue}};
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 use tokio::{io::AsyncBufReadExt, sync::{Semaphore, TryAcquireError}};
@@ -45,7 +45,7 @@ impl BackendState {
                             (result.map(MetadataResult::ModrinthSearchResult), handle)
                         },
                         bridge::meta::MetadataRequest::ModrinthProjectVersions(ref project_versions) => {
-                            let (result, handle) = meta.fetch_with_keepalive(ModrinthProjectVersionsMetadataItem(project_versions), force_reload).await;
+                            let (result, handle) = meta.fetch_with_keepalive(ModrinthProjectVersionsMetadataItem(project_versions.clone()), force_reload).await;
                             (result.map(MetadataResult::ModrinthProjectVersionsResult), handle)
                         },
                         bridge::meta::MetadataRequest::ModrinthProject(ref project) => {
@@ -90,7 +90,7 @@ impl BackendState {
                 tokio::task::spawn(Instance::load_content(self.clone(), id, content_folder));
             },
             MessageToBackend::CreateInstance { name, version, loader, icon } => {
-                self.create_instance(&name, &version, loader, icon).await;
+                self.create_instance(&name, &version, loader, icon);
             },
             MessageToBackend::DeleteInstance { id } => {
                 if let Some(instance) = self.instance_state.write().instances.get_mut(id) {
@@ -327,6 +327,18 @@ impl BackendState {
                 live_game_output,
                 modal_action,
             } => {
+                self.start_instance(id, quick_play, live_game_output, modal_action).await
+            },
+            MessageToBackend::StartQuickplayInstance {
+                preset,
+                minecraft_version,
+                quick_play,
+                live_game_output,
+                modal_action
+            } => {
+                let Some(id) = self.setup_quickplay_instance(preset, minecraft_version, &modal_action).await else {
+                    return;
+                };
                 self.start_instance(id, quick_play, live_game_output, modal_action).await
             },
             MessageToBackend::SetContentEnabled { id, content_ids: mod_ids, enabled } => {
@@ -1994,6 +2006,75 @@ impl BackendState {
         }
 
         launch_tracker.set_finished(ProgressTrackerFinishType::from_err(is_err));
+    }
+
+    async fn setup_quickplay_instance(self: &Arc<Self>, preset: QuickplayPreset, minecraft_version: Ustr, modal_action: &ModalAction) -> Option<InstanceID> {
+        let loader = crate::quickplay_presets::loader(preset);
+
+        let name = schema::quickplay::INSTANCE_NAME;
+        let (id, mods_folder) = if let Some(existing) = self.instance_state.write().instances.iter_mut().find(|i| i.name == name) {
+            existing.configuration.modify(|cfg| {
+                cfg.minecraft_version = minecraft_version;
+                cfg.loader = loader;
+                cfg.sandbox = true;
+            });
+            let mods_folder = if existing.frozen_mods_folder {
+                None
+            } else {
+                Some(existing.content_state[ContentFolder::Mods].path.clone())
+            };
+            (existing.id, mods_folder)
+        } else {
+            let tracker = modal_action.push_tracker("Creating instance".into());
+            tracker.add_total(2);
+
+            let path = self.create_instance(name, minecraft_version.as_str(), loader, None)?;
+
+            tracker.add_count(1);
+
+            let instance_id = self.load_instance_from_path(&path, true, false)?;
+
+            let mods_folder = if let Some(instance) = self.instance_state.write().instances.get_mut(instance_id) {
+                instance.configuration.modify(|cfg| {
+                    cfg.minecraft_version = minecraft_version;
+                    cfg.loader = loader;
+                    cfg.sandbox = true;
+                });
+                if instance.frozen_mods_folder {
+                    None
+                } else {
+                    Some(instance.content_state[ContentFolder::Mods].path.clone())
+                }
+            } else {
+                None
+            };
+
+            tracker.add_count(1);
+            tracker.set_finished(ProgressTrackerFinishType::Normal);
+
+            (instance_id, mods_folder)
+        };
+
+        if loader == Loader::Vanilla {
+            return Some(id);
+        }
+        let Some(mods_folder) = mods_folder else {
+            return Some(id);
+        };
+
+        let files = crate::quickplay_presets::resolve_installs(preset, minecraft_version, self.meta.clone(), modal_action).await;
+
+        _ = std::fs::remove_dir_all(mods_folder);
+        let install = ContentInstall {
+            target: InstallTarget::Instance(id),
+            loader,
+            minecraft_version,
+            files,
+        };
+
+        self.install_content(install, modal_action.clone()).await;
+
+        Some(id)
     }
 
     fn extract_skin_url_from_profile(profile_json: &str) -> Option<Arc<str>> {

@@ -322,8 +322,8 @@ impl BackendState {
                         return;
                     }
 
-                    let success = self.load_instance_from_path(path, false, true);
-                    if !success {
+                    let instance = self.load_instance_from_path(path, false, true);
+                    if instance.is_none() {
                         self.file_watching.write().watch_filesystem(path.clone(), WatchTarget::InvalidInstanceDir);
                     }
                 }

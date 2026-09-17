@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     component::{generic_title_bar::TitleBarState, main_title_bar::MainTitleBar, menu::{MenuGroup, MenuGroupItem}, page_path::PagePath, resize_panel::{ResizePanel, ResizePanelState}, shrinking_text::ShrinkingText}, entity::{
         DataEntities, account::AccountExt, instance::{InstanceAddedEvent, InstanceEntries, InstanceModifiedEvent, InstanceMovedToTopEvent, InstanceRemovedEvent}
-    }, icon::PandoraIcon, interface_config::InterfaceConfig, pages::{curseforge_page::CurseforgeSearchPage, import::ImportPage, instance::instance_page::InstancePage, instances_page::InstancesPage, modrinth_page::ModrinthSearchPage, modrinth_project_page::ModrinthProjectPage, page::Page, skins_page::SkinsPage, syncing_page::SyncingPage}, png_render_cache,
+    }, icon::PandoraIcon, interface_config::InterfaceConfig, pages::{curseforge_page::CurseforgeSearchPage, import::ImportPage, instance::instance_page::InstancePage, instances_page::InstancesPage, modrinth_page::ModrinthSearchPage, modrinth_project_page::ModrinthProjectPage, page::Page, quickplay::QuickplayPage, skins_page::SkinsPage, syncing_page::SyncingPage}, png_render_cache,
 };
 
 pub struct LauncherUI {
@@ -35,6 +35,7 @@ pub struct LauncherUI {
 #[serde(rename_all = "snake_case")]
 pub enum PageType {
     #[default]
+    Quickplay,
     Instances,
     Skins,
     Modrinth {
@@ -58,6 +59,7 @@ pub enum PageType {
 impl PageType {
     pub fn title(&self, data: &DataEntities, cx: &App) -> SharedString {
         match self {
+            PageType::Quickplay => t::quickplay::title().into(),
             PageType::Instances => t::instance::title().into(),
             PageType::Skins => t::skins::title().into(),
             PageType::Modrinth { installing_for } => {
@@ -87,6 +89,7 @@ impl PageType {
 
 #[derive(Clone)]
 pub enum LauncherPage {
+    Quickplay(Entity<QuickplayPage>),
     Instances(Entity<InstancesPage>),
     Skins(Entity<SkinsPage>),
     Modrinth(Entity<ModrinthSearchPage>),
@@ -106,6 +109,7 @@ impl LauncherPage {
         }
 
         let (scrollable, controls, page) = match self {
+            LauncherPage::Quickplay(entity) => process(entity, window, cx),
             LauncherPage::Instances(entity) => process(entity, window, cx),
             LauncherPage::Skins(entity) => process(entity, window, cx),
             LauncherPage::Modrinth(entity) => process(entity, window, cx),
@@ -148,12 +152,22 @@ impl LauncherUI {
             .read(cx)
             .entries
             .iter()
+            .filter_map(|(id, entry)| {
+                let entry = entry.read(cx);
+                if entry.name == schema::quickplay::INSTANCE_NAME {
+                    None
+                } else {
+                    Some((*id, entry.name.clone()))
+                }
+            })
             .take(3)
-            .map(|(id, ent)| (*id, ent.read(cx).name.clone()))
             .collect();
 
         let _instance_added_subscription =
             cx.subscribe::<_, InstanceAddedEvent>(&data.instances, |this, _, event, cx| {
+                if event.instance.name == schema::quickplay::INSTANCE_NAME {
+                    return;
+                }
                 if this.recent_instances.is_full() {
                     this.recent_instances.pop();
                 }
@@ -187,6 +201,9 @@ impl LauncherUI {
             });
         let _instance_moved_to_top_subscription =
             cx.subscribe::<_, InstanceMovedToTopEvent>(&data.instances, |this, _, event, cx| {
+                if event.instance.name == schema::quickplay::INSTANCE_NAME {
+                    return;
+                }
                 this.recent_instances.retain(|entry| entry.0 != event.instance.id);
                 if this.recent_instances.is_full() {
                     this.recent_instances.pop();
@@ -249,6 +266,9 @@ impl LauncherUI {
 
     fn create_page(data: &DataEntities, page: PageType, window: &mut Window, cx: &mut Context<Self>) -> Result<LauncherPage, PageType> {
         match page {
+            PageType::Quickplay => {
+                Ok(LauncherPage::Quickplay(cx.new(|cx| QuickplayPage::new(data, window, cx))))
+            },
             PageType::Instances => {
                 Ok(LauncherPage::Instances(cx.new(|cx| InstancesPage::new(data, window, cx))))
             },
@@ -408,6 +428,11 @@ impl Render for LauncherUI {
         };
 
         let library_group = MenuGroup::new("Minecraft")
+            .child(MenuGroupItem::new(t::quickplay::title())
+                .active(page_type == PageType::Quickplay)
+                .on_click(cx.listener(|launcher, _, window, cx| {
+                    launcher.switch_page(PageType::Quickplay, &[], window, cx);
+                })))
             .child(MenuGroupItem::new(t::instance::title())
                 .active(page_type == PageType::Instances)
                 .on_click(cx.listener(|launcher, _, window, cx| {

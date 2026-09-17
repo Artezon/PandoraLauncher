@@ -209,7 +209,7 @@ impl BackendState {
             let name = name.as_deref().unwrap_or("New Instance");
 
             // todo: use icon of mod/modpack/etc. for icon of instance
-            dot_minecraft_dir = self.create_instance_sanitized(&name, &minecraft_version, loader, None).await
+            dot_minecraft_dir = self.create_instance_sanitized(&name, &minecraft_version, loader, None)
                 .map(|v| v.join(".minecraft").into());
         }
 
@@ -329,7 +329,7 @@ impl BackendState {
                         None
                     };
 
-                    let mut result = self.meta.fetch(ModrinthProjectVersionsMetadataItem(&ModrinthProjectVersionsRequest {
+                    let mut result = self.meta.fetch(ModrinthProjectVersionsMetadataItem(ModrinthProjectVersionsRequest {
                         project_id: project_id.clone(),
                         game_versions: Some(Arc::new([content.minecraft_version.into()])),
                         loaders,
@@ -342,7 +342,7 @@ impl BackendState {
                     if not_found && modrinth_loader != ModrinthLoader::Unknown {
                         tracker.add_total(1);
 
-                        result = self.meta.fetch(ModrinthProjectVersionsMetadataItem(&ModrinthProjectVersionsRequest {
+                        result = self.meta.fetch(ModrinthProjectVersionsMetadataItem(ModrinthProjectVersionsRequest {
                             project_id: project_id.clone(),
                             game_versions: Some(Arc::new([content.minecraft_version.into()])),
                             loaders: None,
@@ -356,7 +356,7 @@ impl BackendState {
                     if not_found {
                         tracker.add_total(1);
 
-                        result = self.meta.fetch(ModrinthProjectVersionsMetadataItem(&ModrinthProjectVersionsRequest {
+                        result = self.meta.fetch(ModrinthProjectVersionsMetadataItem(ModrinthProjectVersionsRequest {
                             project_id: project_id.clone(),
                             game_versions: None,
                             loaders: None,

@@ -1685,6 +1685,9 @@ ru = "Ошибка при добавлении учётной записи"
 fr = "Erreur lors de l'ajout du compte"
 it = "Errore durante l'aggiunta dell'account"
 
+[quickplay.title]
+en = "Quickplay"
+
 [instance.title]
 en = "Instances"
 tr = "Profiller"

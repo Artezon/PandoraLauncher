@@ -50,7 +50,7 @@ pub struct Instance {
 
     content_generation: usize,
 
-    frozen_mods_folder: bool,
+    pub frozen_mods_folder: bool,
     pub content_state: enum_map::EnumMap<ContentFolder, ContentFolderState>,
 }
 
@@ -119,6 +119,10 @@ impl From<IoOrSerializationError> for InstanceLoadError {
 }
 
 impl Instance {
+    pub fn should_send_notifications(&self) -> bool {
+        return self.name != schema::quickplay::INSTANCE_NAME;
+    }
+
     pub fn on_root_renamed(&mut self, backend: &Arc<BackendState>, path: &Path) {
         log::info!("Instance {:?} has been moved to {:?}", self.root_path, path);
 
@@ -964,10 +968,6 @@ impl Instance {
         } else {
             self.root_path.clone()
         }
-    }
-
-    pub fn set_frozen_mods_folder(&mut self, frozen_mods_folder: bool) {
-        self.frozen_mods_folder = frozen_mods_folder;
     }
 }
 
